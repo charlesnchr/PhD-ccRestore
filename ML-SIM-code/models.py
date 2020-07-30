@@ -1,10 +1,10 @@
-import os
+
+import math
 import torch
 import torch.nn as nn
 import torch.nn.init
 import torch.nn.functional as F
 import torchvision
-import torchvision.models as models
 import functools # used by RRDBNet
 
 
@@ -20,7 +20,7 @@ def GetModel(opt):
     elif opt.model.lower() == 'rnan':
         net = RNAN(opt)
     elif opt.model.lower() == 'rrdb' or opt.model.lower() == 'esrgan':
-        net = GeneratorRRDB(opt, filters=opt.n_feats, num_res_blocks=opt.n_resblocks,num_upsample=0)
+        net = RRDBNet(in_nc=3, out_nc=3,nf=64, nb=23)
     elif opt.model.lower() == 'srresnet' or opt.model.lower() == 'srgan':
         net = Generator(16, opt)
     elif opt.model.lower() == 'unet':        
@@ -42,24 +42,7 @@ def GetModel(opt):
     elif opt.model.lower() == 'fouriernet':        
         net = FourierNet()        
     elif opt.model.lower() == 'fourierconvnet':        
-        net = FourierConvNet()    
-    elif opt.model.lower() == 'vgg':
-        net = models.vgg19(pretrained=True)
-        # OUT_FEATURES = net.classifier[0].out_features
-        # first_fc = nn.Linear(OUT_FEATURES, opt.nch_in)]
-        # net.classifier[0] = first_fc
-        IN_FEATURES = net.classifier[-1].in_features
-        final_fc = nn.Linear(IN_FEATURES, opt.nch_out)
-
-        # freeze all layers
-        for child in net.children():
-            for param in child.parameters():
-                param.requires_grad = False
-        
-        # except last
-        net.classifier[-1] = final_fc
-        for param in net.classifier[-1].parameters():
-            param.requires_grad = True
+        net = FourierConvNet()                
     else:
         print("model undefined")    
         return None
@@ -1917,123 +1900,188 @@ class DNCNN(nn.Module):
 ### ---------------------------- ESRGAN --------------------------------
 
 
-class ESRGAN_FeatureExtractor(nn.Module):
-    def __init__(self):
-        super(ESRGAN_FeatureExtractor, self).__init__()
-        vgg19_model = models.vgg19(pretrained=True)
-        self.vgg19_54 = nn.Sequential(*list(vgg19_model.features.children())[:35])
+class Discriminator_VGG_128(nn.Module):
+    def __init__(self, in_nc, nf):
+        super(Discriminator_VGG_128, self).__init__()
+        # [64, 128, 128]
+        self.conv0_0 = nn.Conv2d(in_nc, nf, 3, 1, 1, bias=True)
+        self.conv0_1 = nn.Conv2d(nf, nf, 4, 2, 1, bias=False)
+        self.bn0_1 = nn.BatchNorm2d(nf, affine=True)
+        # [64, 64, 64]
+        self.conv1_0 = nn.Conv2d(nf, nf * 2, 3, 1, 1, bias=False)
+        self.bn1_0 = nn.BatchNorm2d(nf * 2, affine=True)
+        self.conv1_1 = nn.Conv2d(nf * 2, nf * 2, 4, 2, 1, bias=False)
+        self.bn1_1 = nn.BatchNorm2d(nf * 2, affine=True)
+        # [128, 32, 32]
+        self.conv2_0 = nn.Conv2d(nf * 2, nf * 4, 3, 1, 1, bias=False)
+        self.bn2_0 = nn.BatchNorm2d(nf * 4, affine=True)
+        self.conv2_1 = nn.Conv2d(nf * 4, nf * 4, 4, 2, 1, bias=False)
+        self.bn2_1 = nn.BatchNorm2d(nf * 4, affine=True)
+        # [256, 16, 16]
+        self.conv3_0 = nn.Conv2d(nf * 4, nf * 8, 3, 1, 1, bias=False)
+        self.bn3_0 = nn.BatchNorm2d(nf * 8, affine=True)
+        self.conv3_1 = nn.Conv2d(nf * 8, nf * 8, 4, 2, 1, bias=False)
+        self.bn3_1 = nn.BatchNorm2d(nf * 8, affine=True)
+        # [512, 8, 8]
+        self.conv4_0 = nn.Conv2d(nf * 8, nf * 8, 3, 1, 1, bias=False)
+        self.bn4_0 = nn.BatchNorm2d(nf * 8, affine=True)
+        self.conv4_1 = nn.Conv2d(nf * 8, nf * 8, 4, 2, 1, bias=False)
+        self.bn4_1 = nn.BatchNorm2d(nf * 8, affine=True)
 
-    def forward(self, img):
-        return self.vgg19_54(img)
+        self.linear1 = nn.Linear(512 * 4 * 4, 100)
+        self.linear2 = nn.Linear(100, 1)
 
-
-class DenseResidualBlock(nn.Module):
-    """
-    The core module of paper: (Residual Dense Network for Image Super-Resolution, CVPR 18)
-    """
-
-    def __init__(self, filters, res_scale=0.2):
-        super(DenseResidualBlock, self).__init__()
-        self.res_scale = res_scale
-
-        def block(in_features, non_linearity=True):
-            layers = [nn.Conv2d(in_features, filters, 3, 1, 1, bias=True)]
-            if non_linearity:
-                layers += [nn.LeakyReLU()]
-            return nn.Sequential(*layers)
-
-        self.b1 = block(in_features=1 * filters)
-        self.b2 = block(in_features=2 * filters)
-        self.b3 = block(in_features=3 * filters)
-        self.b4 = block(in_features=4 * filters)
-        self.b5 = block(in_features=5 * filters, non_linearity=False)
-        self.blocks = [self.b1, self.b2, self.b3, self.b4, self.b5]
-
-    def forward(self, x):
-        inputs = x
-        for block in self.blocks:
-            out = block(inputs)
-            inputs = torch.cat([inputs, out], 1)
-        return out.mul(self.res_scale) + x
-
-
-class ResidualInResidualDenseBlock(nn.Module):
-    def __init__(self, filters, res_scale=0.2):
-        super(ResidualInResidualDenseBlock, self).__init__()
-        self.res_scale = res_scale
-        self.dense_blocks = nn.Sequential(
-            DenseResidualBlock(filters), DenseResidualBlock(filters), DenseResidualBlock(filters)
-        )
+        # activation function
+        self.lrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
 
     def forward(self, x):
-        return self.dense_blocks(x).mul(self.res_scale) + x
+        fea = self.lrelu(self.conv0_0(x))
+        fea = self.lrelu(self.bn0_1(self.conv0_1(fea)))
 
+        fea = self.lrelu(self.bn1_0(self.conv1_0(fea)))
+        fea = self.lrelu(self.bn1_1(self.conv1_1(fea)))
 
-class GeneratorRRDB(nn.Module):
-    def __init__(self, opt, filters=64, num_res_blocks=16, num_upsample=2):
-        super(GeneratorRRDB, self).__init__()
+        fea = self.lrelu(self.bn2_0(self.conv2_0(fea)))
+        fea = self.lrelu(self.bn2_1(self.conv2_1(fea)))
 
-        # First layer
-        self.conv1 = nn.Conv2d(opt.nch_in, filters, kernel_size=3, stride=1, padding=1)
-        # Residual blocks
-        self.res_blocks = nn.Sequential(*[ResidualInResidualDenseBlock(filters) for _ in range(num_res_blocks)])
-        # Second conv layer post residual blocks
-        self.conv2 = nn.Conv2d(filters, filters, kernel_size=3, stride=1, padding=1)
-        # Upsampling layers
-        upsample_layers = []
-        for _ in range(num_upsample):
-            upsample_layers += [
-                nn.Conv2d(filters, filters * 4, kernel_size=3, stride=1, padding=1),
-                nn.LeakyReLU(),
-                nn.PixelShuffle(upscale_factor=2),
-            ]
-        self.upsampling = nn.Sequential(*upsample_layers)
-        # Final output block
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(filters, filters, kernel_size=3, stride=1, padding=1),
-            nn.LeakyReLU(),
-            nn.Conv2d(filters, opt.nch_out, kernel_size=3, stride=1, padding=1),
-        )
+        fea = self.lrelu(self.bn3_0(self.conv3_0(fea)))
+        fea = self.lrelu(self.bn3_1(self.conv3_1(fea)))
 
-    def forward(self, x):
-        out1 = self.conv1(x)
-        out = self.res_blocks(out1)
-        out2 = self.conv2(out)
-        out = torch.add(out1, out2)
-        out = self.upsampling(out)
-        out = self.conv3(out)
+        fea = self.lrelu(self.bn4_0(self.conv4_0(fea)))
+        fea = self.lrelu(self.bn4_1(self.conv4_1(fea)))
+
+        fea = fea.view(fea.size(0), -1)
+        fea = self.lrelu(self.linear1(fea))
+        out = self.linear2(fea)
         return out
 
 
-class ESRGAN_Discriminator(nn.Module):
-    def __init__(self, input_shape):
-        super(ESRGAN_Discriminator, self).__init__()
 
-        self.input_shape = input_shape
-        in_channels, in_height, in_width = self.input_shape
-        patch_h, patch_w = int(in_height / 2 ** 4), int(in_width / 2 ** 4)
-        self.output_shape = (1, patch_h, patch_w)
 
-        def discriminator_block(in_filters, out_filters, first_block=False):
-            layers = []
-            layers.append(nn.Conv2d(in_filters, out_filters, kernel_size=3, stride=1, padding=1))
-            if not first_block:
-                layers.append(nn.BatchNorm2d(out_filters))
-            layers.append(nn.LeakyReLU(0.2, inplace=True))
-            layers.append(nn.Conv2d(out_filters, out_filters, kernel_size=3, stride=2, padding=1))
-            layers.append(nn.BatchNorm2d(out_filters))
-            layers.append(nn.LeakyReLU(0.2, inplace=True))
-            return layers
+class VGGFeatureExtractor(nn.Module):
+    def __init__(self, feature_layer=34, use_bn=False, use_input_norm=True,
+                 device=torch.device('cpu')):
+        super(VGGFeatureExtractor, self).__init__()
+        self.use_input_norm = use_input_norm
+        if use_bn:
+            model = torchvision.models.vgg19_bn(pretrained=True)
+        else:
+            model = torchvision.models.vgg19(pretrained=True)
+        if self.use_input_norm:
+            mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).to(device)
+            # [0.485 - 1, 0.456 - 1, 0.406 - 1] if input in range [-1, 1]
+            std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).to(device)
+            # [0.229 * 2, 0.224 * 2, 0.225 * 2] if input in range [-1, 1]
+            self.register_buffer('mean', mean)
+            self.register_buffer('std', std)
+        self.features = nn.Sequential(*list(model.features.children())[:(feature_layer + 1)])
+        # No need to BP to variable
+        for k, v in self.features.named_parameters():
+            v.requires_grad = False
 
-        layers = []
-        in_filters = in_channels
-        for i, out_filters in enumerate([64, 128, 256, 512]):
-            layers.extend(discriminator_block(in_filters, out_filters, first_block=(i == 0)))
-            in_filters = out_filters
+    def forward(self, x):
+        # Assume input range is [0, 1]
+        if self.use_input_norm:
+            x = (x - self.mean) / self.std
+        output = self.features(x)
+        return output
 
-        layers.append(nn.Conv2d(out_filters, 1, kernel_size=3, stride=1, padding=1))
 
-        self.model = nn.Sequential(*layers)
 
-    def forward(self, img):
-        return self.model(img)
+
+def initialize_weights(net_l, scale=1):
+    if not isinstance(net_l, list):
+        net_l = [net_l]
+    for net in net_l:
+        for m in net.modules():
+            if isinstance(m, nn.Conv2d):
+                torch.nn.init.kaiming_normal_(m.weight, a=0, mode='fan_in')
+                m.weight.data *= scale  # for residual block
+                if m.bias is not None:
+                    m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                torch.nn.init.kaiming_normal_(m.weight, a=0, mode='fan_in')
+                m.weight.data *= scale
+                if m.bias is not None:
+                    m.bias.data.zero_()
+            elif isinstance(m, nn.BatchNorm2d):
+                torch.nn.init.constant_(m.weight, 1)
+                torch.nn.init.constant_(m.bias.data, 0.0)
+
+
+
+
+class ResidualDenseBlock_5C(nn.Module):
+    def __init__(self, nf=64, gc=32, bias=True):
+        super(ResidualDenseBlock_5C, self).__init__()
+        # gc: growth channel, i.e. intermediate channels
+        self.conv1 = nn.Conv2d(nf, gc, 3, 1, 1, bias=bias)
+        self.conv2 = nn.Conv2d(nf + gc, gc, 3, 1, 1, bias=bias)
+        self.conv3 = nn.Conv2d(nf + 2 * gc, gc, 3, 1, 1, bias=bias)
+        self.conv4 = nn.Conv2d(nf + 3 * gc, gc, 3, 1, 1, bias=bias)
+        self.conv5 = nn.Conv2d(nf + 4 * gc, nf, 3, 1, 1, bias=bias)
+        self.lrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
+
+        # initialization
+        initialize_weights([self.conv1, self.conv2, self.conv3, self.conv4, self.conv5],
+                                     0.1)
+
+    def forward(self, x):
+        x1 = self.lrelu(self.conv1(x))
+        x2 = self.lrelu(self.conv2(torch.cat((x, x1), 1)))
+        x3 = self.lrelu(self.conv3(torch.cat((x, x1, x2), 1)))
+        x4 = self.lrelu(self.conv4(torch.cat((x, x1, x2, x3), 1)))
+        x5 = self.conv5(torch.cat((x, x1, x2, x3, x4), 1))
+        return x5 * 0.2 + x
+
+
+def make_layer(block, n_layers):
+    layers = []
+    for _ in range(n_layers):
+        layers.append(block())
+    return nn.Sequential(*layers)
+
+
+class RRDB(nn.Module):
+    '''Residual in Residual Dense Block'''
+
+    def __init__(self, nf, gc=32):
+        super(RRDB, self).__init__()
+        self.RDB1 = ResidualDenseBlock_5C(nf, gc)
+        self.RDB2 = ResidualDenseBlock_5C(nf, gc)
+        self.RDB3 = ResidualDenseBlock_5C(nf, gc)
+
+    def forward(self, x):
+        out = self.RDB1(x)
+        out = self.RDB2(out)
+        out = self.RDB3(out)
+        return out * 0.2 + x
+
+
+class RRDBNet(nn.Module):
+    def __init__(self, in_nc, out_nc, nf, nb, gc=32):
+        super(RRDBNet, self).__init__()
+        RRDB_block_f = functools.partial(RRDB, nf=nf, gc=gc)
+
+        self.conv_first = nn.Conv2d(in_nc, nf, 3, 1, 1, bias=True)
+        self.RRDB_trunk = make_layer(RRDB_block_f, nb)
+        self.trunk_conv = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
+        #### upsampling
+        self.upconv1 = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
+        self.upconv2 = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
+        self.HRconv = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
+        self.conv_last = nn.Conv2d(nf, out_nc, 3, 1, 1, bias=True)
+
+        self.lrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
+
+    def forward(self, x):
+        fea = self.conv_first(x)
+        trunk = self.trunk_conv(self.RRDB_trunk(fea))
+        fea = fea + trunk
+
+        fea = self.lrelu(self.upconv1(F.interpolate(fea, scale_factor=2, mode='nearest')))
+        fea = self.lrelu(self.upconv2(F.interpolate(fea, scale_factor=2, mode='nearest')))
+        out = self.conv_last(self.lrelu(self.HRconv(fea)))
+
+        return out
+

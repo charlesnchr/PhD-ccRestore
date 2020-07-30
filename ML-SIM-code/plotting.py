@@ -87,17 +87,6 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
                 bc_psnr, bc_ssim = makesubplot(2, lr, hr,'bc')
                 sr_psnr, sr_ssim = makesubplot(3, sr, hr, 're')
                 makesubplot(4, hr)
-            elif opt.task == 'classification':
-                predclass = sr.argmax(dim=0,keepdim=True)
-                if predclass.numpy() != hr.numpy():
-                    mean_bc_psnr += 1 # misclassification
-                else:
-                    mean_sr_psnr += 1
-
-                if i + 1 == len(loader):
-                    print('successes (%d/%d)' % (mean_sr_psnr,mean_bc_psnr+mean_sr_psnr))
-
-                continue
             else:                
 
                 if 'sim' not in opt.dataset and opt.scale > 1:
@@ -224,6 +213,10 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
                         bc_psnr, bc_ssim = makesubplot(2, bc, hr,'SIM')
                         sr_psnr, sr_ssim = makesubplot(3, sr, hr,'SR')
                         makesubplot(4, hr,title='GT')                    
+                    
+
+
+
                 else:
                     sr = torch.clamp(sr,min=0,max=1)
 
@@ -282,8 +275,6 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
     print(summarystr,file=opt.fid)
     opt.fid.flush()
     if opt.log and not opt.test:
-        opt.writer.add_scalar('data/psnr', mean_sr_psnr / count,idx)
-        opt.writer.add_scalar('data/ssim', mean_sr_ssim / count,idx)
         t1 = time.perf_counter() - opt.t0
         mem = torch.cuda.memory_allocated()
         print(idx,t1,mem,mean_sr_psnr / count, mean_sr_ssim / count, file=opt.test_stats)

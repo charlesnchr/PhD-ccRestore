@@ -1,19 +1,18 @@
 import math
 import os
+
 import torch
 import torch.nn as nn
 import time
-import numpy as np
+
 import torch.optim as optim
 import torchvision
 from torch.autograd import Variable
 
-from models import GetModel, ESRGAN_Discriminator, ESRGAN_FeatureExtractor
+from models import GetModel
 from datahandler import GetDataloaders
 
 from plotting import testAndMakeCombinedPlots
-
-# from torch.utils.tensorboard import SummaryWriter
 
 from options import parser
 
@@ -78,176 +77,10 @@ def remove_dataparallel_wrapper(state_dict):
     return new_state_dict
 
 
-
-
-def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
-
-    start_epoch = 0
-
-
-    discriminator = ESRGAN_Discriminator(input_shape=(opt.nch_in, opt.imageSize, opt.imageSize)).cuda()
-    feature_extractor = ESRGAN_FeatureExtractor().cuda()
-    
-    # Set feature extractor to inference mode
-    feature_extractor.eval()
-        
-    # Losses
-    criterion_GAN = torch.nn.BCEWithLogitsLoss().cuda()
-    # criterion_content = torch.nn.L1Loss().cuda()
-    # criterion_pixel = torch.nn.L1Loss().cuda()
-
-    if opt.task == 'segment' or opt.task == 'classification':
-        criterion_pixel = nn.CrossEntropyLoss()
-    else:
-        criterion_pixel = nn.L1Loss()
-    
-    # Optimizers
-    optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(0.9, 0.999))
-    optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(0.9, 0.999))
-
-    Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
-
-    criterion_pixel.cuda()
-
-    count = 0
-    opt.t0 = time.perf_counter()
-
-    for epoch in range(start_epoch, nepoch):
-        mean_loss = 0
-
-        for i, bat in enumerate(dataloader):
-            lr, hr = bat[0], bat[1]
-
-            # hr = torch.round((opt.nch_out+1)*hr).long()
-            hr = hr.long().squeeze()
-
-            # Configure model input
-            imgs_lr = Variable(lr.type(Tensor))
-            imgs_hr = Variable(hr.cuda())
-
-            # Adversarial ground truths
-            valid = Variable(Tensor(np.ones((imgs_lr.size(0), *discriminator.output_shape))), requires_grad=False)
-            fake = Variable(Tensor(np.zeros((imgs_lr.size(0), *discriminator.output_shape))), requires_grad=False)
-
-
-            # ------------------
-            #  Train Generators
-            # ------------------
-
-            optimizer_G.zero_grad()
-
-            # Generate a high resolution image from low resolution input
-            gen_hr = generator(imgs_lr)
-
-            # Measure pixel-wise loss against ground truth
-            loss_pixel = criterion_pixel(gen_hr, imgs_hr)
-
-            if epoch < 0:
-                # Warm-up (pixel-wise loss only)
-                loss_pixel.backward()
-                optimizer_G.step()
-                print(
-                    "[Epoch %d/%d] [Batch %d/%d] [G pixel: %f]"
-                    % (epoch, opt.nepoch, i, len(dataloader), loss_pixel.item())
-                )
-                continue
-
-
-            m = nn.LogSoftmax(dim=0)
-            gen_hr = m(gen_hr)
-            # print(gen_hr)
-            gen_hr = gen_hr.argmax(dim=0, keepdim=True)
-
-            print('HERE',gen_hr.shape,imgs_hr.shape)
-
-
-            # Extract validity predictions from discriminator
-            pred_real = discriminator(imgs_hr.unsqueeze(1)).detach()
-            pred_fake = discriminator(gen_hr)
-
-            # Adversarial loss (relativistic average GAN)
-            loss_GAN = criterion_GAN(pred_fake - pred_real.mean(0, keepdim=True), valid)
-
-            # Content loss
-            # gen_features = feature_extractor(gen_hr)
-            # real_features = feature_extractor(imgs_hr).detach()
-            # loss_content = criterion_content(gen_features, real_features)
-
-            # Total generator loss
-            loss_G = opt.lambda_adv * loss_GAN + opt.lambda_pixel * loss_pixel
-
-            loss_G.backward()
-            optimizer_G.step()
-
-            # ---------------------
-            #  Train Discriminator
-            # ---------------------
-
-            optimizer_D.zero_grad()
-
-            pred_real = discriminator(imgs_hr)
-            pred_fake = discriminator(gen_hr.detach())
-
-            # Adversarial loss for real and fake images (relativistic average GAN)
-            loss_real = criterion_GAN(pred_real - pred_fake.mean(0, keepdim=True), valid)
-            loss_fake = criterion_GAN(pred_fake - pred_real.mean(0, keepdim=True), fake)
-
-            # Total loss
-            loss_D = (loss_real + loss_fake) / 2
-
-            loss_D.backward()
-            optimizer_D.step()
-
-
-            ######### Status and display #########
-
-            print(
-                "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, adv: %f, pixel: %f]"
-                % (
-                    epoch,
-                    opt.nepoch,
-                    i,
-                    len(dataloader),
-                    loss_D.item(),
-                    loss_G.item(),
-                    loss_GAN.item(),
-                    loss_pixel.item(),
-                )
-            )
-
-        # ---------------- TEST -----------------
-        if (epoch + 1) % opt.testinterval == 0:
-            testAndMakeCombinedPlots(net, validloader, opt, epoch)
-            # if opt.scheduler:
-            # scheduler.step(mean_loss / len(dataloader))
-
-        if (epoch + 1) % opt.saveinterval == 0:
-            # torch.save(net.state_dict(), opt.out + '/prelim.pth')
-            checkpoint = {'epoch': epoch + 1,
-                          'state_dict': net.state_dict(),
-                          'optimizer': optimizer.state_dict()}
-            if len(opt.scheduler) > 0:
-                checkpoint['scheduler'] = scheduler.state_dict()
-            torch.save(checkpoint, '%s/prelim%d.pth' % (opt.out, epoch+1))
-
-    checkpoint = {'epoch': nepoch,
-                  'state_dict': net.state_dict(),
-                  'optimizer': optimizer.state_dict()}
-    if len(opt.scheduler) > 0:
-        checkpoint['scheduler'] = scheduler.state_dict()
-    torch.save(checkpoint, opt.out + '/final.pth')
-
-
-
-
-
-
-
-
 def train(dataloader, validloader, net, nepoch=10):
 
     start_epoch = 0
-    if opt.task == 'segment' or opt.task == 'classification':
+    if opt.task == 'segment':
         loss_function = nn.CrossEntropyLoss()
     else:
         loss_function = nn.MSELoss()
@@ -281,14 +114,21 @@ def train(dataloader, validloader, net, nepoch=10):
             start_epoch = checkpoint['epoch']
 
 
+        # if opt.modifyPretrainedModel:
+        #     mod = list(net.children())
+        #     mod.pop()
+        #     mod.append(nn.Conv2d(64, 2, 1))
+        #     net = torch.nn.Sequential(*mod)
+        #     net.cuda()
+        #     opt.task = 'segment'
+
     if len(opt.scheduler) > 0:
         # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True, threshold=0.0001, threshold_mode='rel', cooldown=5, min_lr=0, eps=1e-08)
         stepsize, gamma = int(opt.scheduler.split(
             ',')[0]), float(opt.scheduler.split(',')[1])
         scheduler = optim.lr_scheduler.StepLR(optimizer, stepsize, gamma=gamma)
-        if len(opt.weights) > 0:
-            if 'scheduler' in checkpoint:
-                scheduler.load_state_dict(checkpoint['scheduler'])
+        if 'scheduler' in checkpoint:
+            scheduler.load_state_dict(checkpoint['scheduler'])
 
     count = 0
     opt.t0 = time.perf_counter()
@@ -299,6 +139,15 @@ def train(dataloader, validloader, net, nepoch=10):
         for param_group in optimizer.param_groups:
             print('\nLearning rate', param_group['lr'])
 
+        # if len(opt.lrseq) > 0:
+        #     t = '[5,1e-4,10,1e-5]'
+        #     t = np.array(t)
+        #     epochvec = t[::2].astype('int')
+        #     lrvec = t[1::2].astype('float')
+
+        #     idx = epochvec.indexOf(epoch)
+        #     opt.lr = lrvec[idx]
+        #     optimizer = optim.Adam(net.parameters(), lr=opt.lr)
 
         for i, bat in enumerate(dataloader):
             lr, hr = bat[0], bat[1]
@@ -317,12 +166,6 @@ def train(dataloader, validloader, net, nepoch=10):
                 noise = net(lr.cuda())
                 gt_noise = lr.cuda() - hr.cuda()
                 loss = loss_function(noise, gt_noise)
-            elif opt.task == 'classification':
-                inputimg = lr
-                label = hr
-                pred = net(inputimg.cuda())
-                loss = loss_function(
-                    pred.squeeze(), label.squeeze().cuda())
             else:
                 sr = net(lr.cuda())
                 if opt.task == 'segment':
@@ -348,9 +191,6 @@ def train(dataloader, validloader, net, nepoch=10):
             if opt.log and count*opt.batchSize // 1000 > 0:
                 t1 = time.perf_counter() - opt.t0
                 mem = torch.cuda.memory_allocated()
-                opt.writer.add_scalar(
-                    'data/mean_loss_per_1000', mean_loss / count, epoch)
-                opt.writer.add_scalar('data/time_per_1000', t1, epoch)
                 print(epoch, count*opt.batchSize, t1, mem,
                       mean_loss / count, file=opt.train_stats)
                 opt.train_stats.flush()
@@ -370,9 +210,6 @@ def train(dataloader, validloader, net, nepoch=10):
         print('\nEpoch %d done, %0.6f' %
               (epoch, (mean_loss / len(dataloader))), file=opt.fid)
         opt.fid.flush()
-        if opt.log:
-            opt.writer.add_scalar(
-                'data/mean_loss', mean_loss / len(dataloader), epoch)
 
         # ---------------- TEST -----------------
         if (epoch + 1) % opt.testinterval == 0:
@@ -412,8 +249,6 @@ if __name__ == '__main__':
     net = GetModel(opt)
 
     if opt.log:
-        opt.writer = SummaryWriter(logdir=opt.out, comment='_%s_%s' % (
-            opt.out.replace('\\', '/').split('/')[-1], opt.model))
         opt.train_stats = open(opt.out.replace(
             '\\', '/') + '/train_stats.csv', 'w')
         opt.test_stats = open(opt.out.replace(
@@ -424,7 +259,9 @@ if __name__ == '__main__':
     import time
     t0 = time.perf_counter()
     if not opt.test:
-        if opt.model.lower() == 'esrgan':
+        if opt.model.lower() == 'srgan':
+            GANtrain(dataloader, validloader, net, nepoch=opt.nepoch)
+        elif opt.model.lower() == 'esrgan':
             ESRGANtrain(dataloader, validloader, net, nepoch=opt.nepoch)
         else:
             train(dataloader, validloader, net, nepoch=opt.nepoch)
@@ -440,7 +277,3 @@ if __name__ == '__main__':
             print('time: ', time.perf_counter()-t0)
         testAndMakeCombinedPlots(net, validloader, opt)
     print('time: ', time.perf_counter()-t0)
-
-    if opt.log:
-        opt.writer.export_scalars_to_json(opt.out + "/rundata.json")
-        opt.writer.close()

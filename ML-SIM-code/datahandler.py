@@ -1,5 +1,3 @@
-import os
-
 import torch
 import torch.nn as nn
 
@@ -11,7 +9,8 @@ import random
 
 import numpy as np
 
-from skimage import io, exposure, transform
+from skimage import io
+from skimage import exposure
 
 
 def PSNR(I0,I1):
@@ -55,9 +54,6 @@ def GetDataloaders(opt):
     elif opt.dataset.lower() == 'imagedataset': 
         dataloader = load_image_dataset(opt.root,'train',opt)
         validloader = load_image_dataset(opt.root,'valid',opt)
-    elif opt.dataset.lower() == 'imageclassdataset': 
-        dataloader = load_imageclass_dataset(opt.root,'train',opt)
-        validloader = load_imageclass_dataset(opt.root,'valid',opt)
     elif opt.dataset.lower() == 'doubleimagedataset': 
         dataloader = load_doubleimage_dataset(opt.root,'train',opt)
         validloader = load_doubleimage_dataset(opt.root,'valid',opt)
@@ -125,68 +121,6 @@ class ImageDataset(Dataset):
 def load_image_dataset(root,category,opt):
         
     dataset = ImageDataset(root, category, opt)
-    if category == 'train':
-        dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
-    else:
-        dataloader = DataLoader(dataset, batch_size=opt.batchSize_test, shuffle=False, num_workers=0)
-    return dataloader
-
-
-
-class ImageClassDataset(Dataset):
-
-    def __init__(self, root, category, opt):
-        self.images = glob.glob(root + '/**/*.*', recursive=True)
-        
-        random.seed(1234)
-        random.shuffle(self.images)
-
-        if category == 'train':
-            self.images = self.images[:opt.ntrain]
-        else:
-            self.images = self.images[-opt.ntest:]
-
-        self.croptransform = transforms.Compose([transforms.RandomCrop(opt.imageSize*opt.scale),transforms.ToTensor()])
-        self.scaletransform = transforms.Compose([transforms.ToPILImage(),transforms.Resize(opt.imageSize),transforms.ToTensor()])
-        self.imageSize = opt.imageSize
-        self.nch_in = opt.nch_in
-        self.scale = opt.scale
-        self.len = len(self.images)
-        
-    def __getitem__(self, index):
-        stack = io.imread(self.images[index])
-        dims = (self.imageSize,self.imageSize,self.nch_in)
-        stack = transform.resize(stack,dims)
-
-        # for i in range(self.nch_in):
-        #     stack[i] = (stack[i] - np.min(stack[i])) / (np.max(stack[i]) - np.min(stack[i]))
-        
-        stack = torch.tensor(stack).float().permute(2,0,1)
-
-        label = os.path.basename(self.images[index])
-
-        label = label.split('_')[1]
-        label = label.split('.tif')[0]
-        label = int(label)
-
-        # label = label.split('_')[0]
-        # if 'cats' in label:
-        #     label = 0
-        # elif 'dogs' in label:
-        #     label = 1
-        # else:
-        #     label = 2 # pandas
-            
-
-        return stack, label
-
-    def __len__(self):
-        return self.len
-
-
-def load_imageclass_dataset(root,category,opt):
-        
-    dataset = ImageClassDataset(root, category, opt)
     if category == 'train':
         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
     else:
@@ -569,8 +503,7 @@ class GenericPickleDataset(Dataset):
     def __getitem__(self, index):
 
         if self.scale > 1:
-            # img = pickle.load(open(self.images[index],'rb'))
-            img = np.load(self.images[index])
+            img = pickle.load(open(self.images[index],'rb'))
             hr = toTensor(img)
 
             # rotate and flip?
@@ -582,9 +515,8 @@ class GenericPickleDataset(Dataset):
             lr = self.trans(hr)
             return lr, hr
         else:
-            # lq, hq = pickle.load(open(self.images[index], 'rb'))
-            lq, hq = np.load(self.images[index])
-            lq, hq = toTensor(lq).float(), toTensor(hq).float()
+            lq, hq = pickle.load(open(self.images[index], 'rb'))
+            lq, hq = toTensor(lq), toTensor(hq)
 
             # multi-image input?
             if lq.shape[0] > self.nch:
