@@ -16,6 +16,9 @@ import matplotlib.pyplot as plt
 import glob
 from tqdm import tqdm
 
+import numpy as np
+import os
+
 
 # from plotting import testAndMakeCombinedPlots
 
@@ -50,7 +53,46 @@ def changeColour(I): # change colours (used to match WEKA output, request by Men
     return Inew
 
 
-def processImage(net,opt,idxstr,imgfile,img):
+
+def AssembleStacks(basefolder,outdir):
+    # export to tif
+    
+    folders = []
+    folders.append(basefolder + '/in')
+    folders.append(basefolder + '/out') 
+
+    for subfolder in ['in','out']:
+        folder = basefolder + '/' + subfolder
+        if not os.path.isdir(folder): continue
+        imgs = glob.glob(folder + '/*.jpg')
+        imgs.extend(glob.glob(folder + '/*.png'))
+        n = len(imgs)
+        
+        shape = io.imread(imgs[0]).shape
+        h = shape[0]
+        w = shape[1]
+        
+        if len(shape) == 2:
+            I = np.zeros((n,h,w),dtype='uint8')
+        else:
+            c = shape[2]
+            I = np.zeros((n,h,w,c),dtype='uint8')
+        
+        for nidx, imgfile in enumerate(imgs):
+            img = io.imread(imgfile)
+            I[nidx] = img
+
+            print('%s : [%d/%d] loaded imgs' % (folder,nidx+1,len(imgs)),end='\r')
+        print('')
+        
+        stackname = os.path.basename(basefolder)
+        stackfilename = '%s/%s_%s.tif' % (outdir,stackname,subfolder)
+        io.imsave(stackfilename,I,compress=6)
+        print('saved stack: %s.tif' % stackfilename)
+
+
+
+def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
 
     imageSize = opt.imageSize
 
@@ -130,15 +172,10 @@ def processImage(net,opt,idxstr,imgfile,img):
     if opt.weka_colours:
         oimg = changeColour(oimg)
 
-    if opt.out == 'root': # save next to orignal
-        ext = imgfile.split('.')[-1]
-        Image.fromarray(oimg).save(imgfile.replace('.' + ext,'_out_' + idxstr + '.png'))
-        if opt.save_input:
-            io.imsave(imgfile.replace('.' + ext,'_in_' + idxstr + '.png'),img_as_ubyte(img))
-    else:
-        Image.fromarray(oimg).save('%s/%s.png' % (opt.out,idxstr))
-        if opt.save_input:
-            io.imsave('%s/%s_in.png' % (opt.out,idxstr),img_as_ubyte(img))
+    Image.fromarray(oimg).save(savepath_out)
+    if opt.save_input:
+        io.imsave(savepath_in,img_as_ubyte(img))
+        
     # Image.fromarray((img*255).astype('uint8')).save('%s/input_%04d.png' % (opt.out,i))
 
 
@@ -189,7 +226,7 @@ def EvaluateModel(opt):
 
         pbar_outer.set_description(os.path.basename(imgfile))
 
-        _, ext = os.path.splitext(imgfile)
+        basepath, ext = os.path.splitext(imgfile)
 
         if ext.lower() == '.tif':
             img = io.imread(imgfile)
@@ -199,20 +236,37 @@ def EvaluateModel(opt):
         # img = io.imread(imgfile)
         # img = (img - np.min(img)) / (np.max(img) - np.min(img)) 
 
-        if len(img.shape) == 2:
-            idxstr = '%04d' % imgidx
-            processImage(net,opt,idxstr,imgfile,img)
+        # filenames for saving
+        idxstr = '%04d' % imgidx
+        if opt.out == 'root': # save next to orignal
+            savepath_out = imgfile.replace('.' + ext,'_out_' + idxstr + '.png')
+            savepath_in = imgfile.replace('.' + ext,'_in_' + idxstr + '.png')
+        else:
+            savepath_out = '%s/%s_out.png' % (opt.out,idxstr)
+            savepath_in = '%s/%s_in.png' % (opt.out,idxstr)
+
+        # process image
+        if len(img.shape) == 2:            
+            processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr)
         elif img.shape[2] <= 3:
             print('removing colour channel')
             img = img[:,:,0]
-            idxstr = '%04d' % imgidx
-            processImage(net,opt,idxstr,imgfile,img)
+            processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr)
         else: # more than 3 channels, assuming stack
+            basefolder = basepath
+            os.makedirs(basefolder,exist_ok=True)
+            if opt.save_input:
+                os.makedirs(basefolder + '/in',exist_ok=True)
+            os.makedirs(basefolder + '/out',exist_ok=True)
+
             for subimgidx in tqdm(range(img.shape[0]),leave=False,desc='Stack progress'):
                 idxstr = '%04d_%04d' % (imgidx,subimgidx)
+                savepath_in = '%s/in/%s.png' % (basefolder,idxstr)
+                savepath_out = '%s/out/%s.png' % (basefolder,idxstr)
                 p1,p99 = np.percentile(img[subimgidx],1),np.percentile(img[subimgidx],99)
                 imgnorm = exposure.rescale_intensity(img[subimgidx],in_range=(p1,p99))
-                processImage(net,opt,idxstr,imgfile,imgnorm)
+                processImage(net,opt,imgfile,imgnorm,savepath_in,savepath_out,idxstr)
+            AssembleStacks(basefolder,opt.root)
 
 
     if opt.stats_tubule_sheet:

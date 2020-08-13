@@ -1970,7 +1970,7 @@ class ResidualInResidualDenseBlock(nn.Module):
 
 
 class GeneratorRRDB(nn.Module):
-    def __init__(self, opt, filters=64, num_res_blocks=16, num_upsample=2):
+    def __init__(self, opt, filters=48, num_res_blocks=4, num_upsample=0):
         super(GeneratorRRDB, self).__init__()
 
         # First layer
@@ -1992,7 +1992,7 @@ class GeneratorRRDB(nn.Module):
         self.conv3 = nn.Sequential(
             nn.Conv2d(filters, filters, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(),
-            nn.Conv2d(filters, opt.nch_out, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(filters, opt.nch_out, kernel_size=1),
         )
 
     def forward(self, x):

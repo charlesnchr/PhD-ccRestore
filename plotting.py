@@ -262,11 +262,20 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
                 if idx is None:  # for tests
                     plt.savefig('%s/combined_%d.png' % (opt.out,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
                     lr.save('%s/lr_%d.png' % (opt.out,count))
-                    bc.save('%s/bc_%d.png' % (opt.out,count))
                     sr.save('%s/sr_%d.png' % (opt.out,count))
                     hr.save('%s/hr_%d.png' % (opt.out,count))
                 else:
                     plt.savefig('%s/combined_epoch%d_%d.png' % (opt.out,idx,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
+                if opt.log and not opt.test:
+                    if opt.task == 'segment':
+                        opt.writer.add_image('lr/%d' % count, toTensor(lr),idx)
+                        opt.writer.add_image('sr/%d' % count, toTensor(sr),idx)
+                        opt.writer.add_image('hr/%d' % count, toTensor(hr),idx)
+                    else:
+                        opt.writer.add_image('lr/%d' % count, toTensor(lr),idx)
+                        opt.writer.add_image('bc/%d' % count, toTensor(bc),idx)
+                        opt.writer.add_image('sr/%d' % count, toTensor(sr),idx)
+                        opt.writer.add_image('hr/%d' % count, toTensor(hr),idx)
                 plt.close()
 
             count += 1
@@ -282,8 +291,8 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
     print(summarystr,file=opt.fid)
     opt.fid.flush()
     if opt.log and not opt.test:
-        opt.writer.add_scalar('data/psnr', mean_sr_psnr / count,idx)
-        opt.writer.add_scalar('data/ssim', mean_sr_ssim / count,idx)
+        opt.writer.add_scalar('test/psnr', mean_sr_psnr / count,idx)
+        opt.writer.add_scalar('test/ssim', mean_sr_ssim / count,idx)
         t1 = time.perf_counter() - opt.t0
         mem = torch.cuda.memory_allocated()
         print(idx,t1,mem,mean_sr_psnr / count, mean_sr_ssim / count, file=opt.test_stats)

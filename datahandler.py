@@ -138,6 +138,13 @@ class ImageClassDataset(Dataset):
     def __init__(self, root, category, opt):
         self.images = glob.glob(root + '/**/*.*', recursive=True)
         
+        # filter zero classes out
+        newimages = []
+        for img in self.images:
+            if not '_0.tif' in img:
+                newimages.append(img)
+        self.images = newimages
+
         random.seed(1234)
         random.shuffle(self.images)
 
@@ -155,6 +162,8 @@ class ImageClassDataset(Dataset):
         
     def __getitem__(self, index):
         stack = io.imread(self.images[index])
+        stack[:,:,0] = stack[:,:,1]
+        stack[:,:,2] = stack[:,:,1]
         dims = (self.imageSize,self.imageSize,self.nch_in)
         stack = transform.resize(stack,dims)
 
@@ -168,6 +177,10 @@ class ImageClassDataset(Dataset):
         label = label.split('_')[1]
         label = label.split('.tif')[0]
         label = int(label)
+        if label < 3:
+            label = 0
+        else:
+            label = 1
 
         # label = label.split('_')[0]
         # if 'cats' in label:

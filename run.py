@@ -13,7 +13,7 @@ from datahandler import GetDataloaders
 
 from plotting import testAndMakeCombinedPlots
 
-# from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 from options import parser
 
@@ -78,19 +78,17 @@ def remove_dataparallel_wrapper(state_dict):
     return new_state_dict
 
 
-
-
 def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
 
     start_epoch = 0
 
-
-    discriminator = ESRGAN_Discriminator(input_shape=(opt.nch_in, opt.imageSize, opt.imageSize)).cuda()
+    discriminator = ESRGAN_Discriminator(input_shape=(
+        opt.nch_in, opt.imageSize, opt.imageSize)).cuda()
     feature_extractor = ESRGAN_FeatureExtractor().cuda()
-    
+
     # Set feature extractor to inference mode
     feature_extractor.eval()
-        
+
     # Losses
     criterion_GAN = torch.nn.BCEWithLogitsLoss().cuda()
     # criterion_content = torch.nn.L1Loss().cuda()
@@ -100,35 +98,40 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
         criterion_pixel = nn.CrossEntropyLoss()
     else:
         criterion_pixel = nn.L1Loss()
-    
+
     # Optimizers
-    optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(0.9, 0.999))
-    optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(0.9, 0.999))
+    optimizer_G = torch.optim.Adam(
+        generator.parameters(), lr=opt.lr, betas=(0.9, 0.999))
+    optimizer_D = torch.optim.Adam(
+        discriminator.parameters(), lr=opt.lr, betas=(0.9, 0.999))
 
     Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
 
     criterion_pixel.cuda()
 
-    count = 0
     opt.t0 = time.perf_counter()
 
     for epoch in range(start_epoch, nepoch):
-        mean_loss = 0
+        mean_loss_D = 0
+        mean_loss_G = 0
+        mean_loss_GAN = 0
+        mean_loss_pixel = 0
 
         for i, bat in enumerate(dataloader):
             lr, hr = bat[0], bat[1]
 
-            # hr = torch.round((opt.nch_out+1)*hr).long()
-            hr = hr.long().squeeze()
+            hr = torch.round((opt.nch_out-1)*hr).long()
+            # hr = hr.long().squeeze()
 
             # Configure model input
             imgs_lr = Variable(lr.type(Tensor))
             imgs_hr = Variable(hr.cuda())
 
             # Adversarial ground truths
-            valid = Variable(Tensor(np.ones((imgs_lr.size(0), *discriminator.output_shape))), requires_grad=False)
-            fake = Variable(Tensor(np.zeros((imgs_lr.size(0), *discriminator.output_shape))), requires_grad=False)
-
+            valid = Variable(Tensor(
+                np.ones((imgs_lr.size(0), *discriminator.output_shape))), requires_grad=False)
+            fake = Variable(Tensor(
+                np.zeros((imgs_lr.size(0), *discriminator.output_shape))), requires_grad=False)
 
             # ------------------
             #  Train Generators
@@ -140,7 +143,7 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
             gen_hr = generator(imgs_lr)
 
             # Measure pixel-wise loss against ground truth
-            loss_pixel = criterion_pixel(gen_hr, imgs_hr)
+            loss_pixel = criterion_pixel(gen_hr.squeeze(), imgs_hr.squeeze())
 
             if epoch < 0:
                 # Warm-up (pixel-wise loss only)
@@ -152,21 +155,18 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
                 )
                 continue
 
-
-            m = nn.LogSoftmax(dim=0)
+            m = nn.LogSoftmax(dim=1)
             gen_hr = m(gen_hr)
-            # print(gen_hr)
-            gen_hr = gen_hr.argmax(dim=0, keepdim=True)
-
-            print('HERE',gen_hr.shape,imgs_hr.shape)
-
+            gen_hr = gen_hr.argmax(dim=1, keepdim=True)
 
             # Extract validity predictions from discriminator
-            pred_real = discriminator(imgs_hr.unsqueeze(1)).detach()
-            pred_fake = discriminator(gen_hr)
+
+            pred_real = discriminator(imgs_hr.type(Tensor)).detach()
+            pred_fake = discriminator(gen_hr.type(Tensor))
 
             # Adversarial loss (relativistic average GAN)
-            loss_GAN = criterion_GAN(pred_fake - pred_real.mean(0, keepdim=True), valid)
+            loss_GAN = criterion_GAN(
+                pred_fake - pred_real.mean(0, keepdim=True), valid)
 
             # Content loss
             # gen_features = feature_extractor(gen_hr)
@@ -174,7 +174,8 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
             # loss_content = criterion_content(gen_features, real_features)
 
             # Total generator loss
-            loss_G = opt.lambda_adv * loss_GAN + opt.lambda_pixel * loss_pixel
+            # loss_G = opt.lambda_adv * loss_GAN + opt.lambda_pixel * loss_pixel
+            loss_G = 0.001 * loss_GAN + 0.01 * loss_pixel
 
             loss_G.backward()
             optimizer_G.step()
@@ -185,12 +186,14 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
 
             optimizer_D.zero_grad()
 
-            pred_real = discriminator(imgs_hr)
-            pred_fake = discriminator(gen_hr.detach())
+            pred_real = discriminator(imgs_hr.type(Tensor))
+            pred_fake = discriminator(gen_hr.type(Tensor).detach())
 
             # Adversarial loss for real and fake images (relativistic average GAN)
-            loss_real = criterion_GAN(pred_real - pred_fake.mean(0, keepdim=True), valid)
-            loss_fake = criterion_GAN(pred_fake - pred_real.mean(0, keepdim=True), fake)
+            loss_real = criterion_GAN(
+                pred_real - pred_fake.mean(0, keepdim=True), valid)
+            loss_fake = criterion_GAN(
+                pred_fake - pred_real.mean(0, keepdim=True), fake)
 
             # Total loss
             loss_D = (loss_real + loss_fake) / 2
@@ -198,23 +201,46 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
             loss_D.backward()
             optimizer_D.step()
 
-
             ######### Status and display #########
+            mean_loss_D += loss_D.item()
+            mean_loss_G += loss_G.item()
+            mean_loss_GAN += loss_GAN.item()
+            mean_loss_pixel += loss_pixel.item()
 
             print(
-                "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, adv: %f, pixel: %f]"
+                "\r[%d/%d][%d/%d] [D loss: %f] [G loss: %f, adv: %f, pixel: %f]"
                 % (
-                    epoch,
+                    epoch+1,
                     opt.nepoch,
-                    i,
+                    i+1,
                     len(dataloader),
                     loss_D.item(),
                     loss_G.item(),
                     loss_GAN.item(),
                     loss_pixel.item(),
-                )
+                ), end=''
             )
 
+        # ---------------- Printing -----------------
+        mean_loss_D = loss_D / len(dataloader)
+        mean_loss_G = loss_G / len(dataloader)
+        mean_loss_GAN = loss_GAN / len(dataloader)
+        mean_loss_pixel = loss_pixel / len(dataloader)
+        outstr = '\nEpoch %d done, [D loss: %0.6f] [G loss: %0.6f, adv: %0.6f, pixel: %0.6f]' % (
+            epoch, mean_loss_D, mean_loss_G, mean_loss_GAN, mean_loss_pixel)
+        print(outstr)
+        print(outstr, file=opt.fid)
+        opt.fid.flush()
+        if opt.log:
+            t1 = time.perf_counter() - opt.t0
+            mem = torch.cuda.memory_allocated()
+            opt.writer.add_scalar('loss/mean_loss_D', mean_loss_D, epoch)
+            opt.writer.add_scalar('loss/mean_loss_G', mean_loss_G, epoch)
+            opt.writer.add_scalar('loss/mean_loss_GAN', mean_loss_GAN, epoch)
+            opt.writer.add_scalar('loss/mean_loss_pixel', mean_loss_pixel, epoch)
+            opt.writer.add_scalar('data/time', t1, epoch)
+            opt.writer.add_scalar('data/mem', mem, epoch)
+            
         # ---------------- TEST -----------------
         if (epoch + 1) % opt.testinterval == 0:
             testAndMakeCombinedPlots(net, validloader, opt, epoch)
@@ -225,23 +251,21 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
             # torch.save(net.state_dict(), opt.out + '/prelim.pth')
             checkpoint = {'epoch': epoch + 1,
                           'state_dict': net.state_dict(),
-                          'optimizer': optimizer.state_dict()}
-            if len(opt.scheduler) > 0:
-                checkpoint['scheduler'] = scheduler.state_dict()
+                          'optimizer_G': optimizer_G.state_dict(),
+                          'optimizer_D': optimizer_D.state_dict()
+                          }
+            # if len(opt.scheduler) > 0:
+            #     checkpoint['scheduler'] = scheduler.state_dict()
             torch.save(checkpoint, '%s/prelim%d.pth' % (opt.out, epoch+1))
 
     checkpoint = {'epoch': nepoch,
                   'state_dict': net.state_dict(),
-                  'optimizer': optimizer.state_dict()}
-    if len(opt.scheduler) > 0:
-        checkpoint['scheduler'] = scheduler.state_dict()
+                  'optimizer_G': optimizer_G.state_dict(),
+                  'optimizer_D': optimizer_D.state_dict()
+                  }
+    # if len(opt.scheduler) > 0:
+    #     checkpoint['scheduler'] = scheduler.state_dict()
     torch.save(checkpoint, opt.out + '/final.pth')
-
-
-
-
-
-
 
 
 def train(dataloader, validloader, net, nepoch=10):
@@ -280,7 +304,6 @@ def train(dataloader, validloader, net, nepoch=10):
                 optimizer.load_state_dict(checkpoint['optimizer'])
             start_epoch = checkpoint['epoch']
 
-
     if len(opt.scheduler) > 0:
         # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True, threshold=0.0001, threshold_mode='rel', cooldown=5, min_lr=0, eps=1e-08)
         stepsize, gamma = int(opt.scheduler.split(
@@ -290,15 +313,14 @@ def train(dataloader, validloader, net, nepoch=10):
             if 'scheduler' in checkpoint:
                 scheduler.load_state_dict(checkpoint['scheduler'])
 
-    count = 0
     opt.t0 = time.perf_counter()
 
     for epoch in range(start_epoch, nepoch):
+        count = 0
         mean_loss = 0
 
         for param_group in optimizer.param_groups:
             print('\nLearning rate', param_group['lr'])
-
 
         for i, bat in enumerate(dataloader):
             lr, hr = bat[0], bat[1]
@@ -327,7 +349,7 @@ def train(dataloader, validloader, net, nepoch=10):
                 sr = net(lr.cuda())
                 if opt.task == 'segment':
                     if opt.nch_out > 2:
-                        hr_classes = torch.round((opt.nch_out+1)*hr).long()
+                        hr_classes = torch.round((opt.nch_out-1)*hr).long()
                         loss = loss_function(
                             sr.squeeze(), hr_classes.squeeze().cuda())
                     else:
@@ -355,7 +377,6 @@ def train(dataloader, validloader, net, nepoch=10):
                       mean_loss / count, file=opt.train_stats)
                 opt.train_stats.flush()
                 count = 0
-
 
         # ---------------- Scheduler -----------------
         if len(opt.scheduler) > 0:
@@ -412,7 +433,7 @@ if __name__ == '__main__':
     net = GetModel(opt)
 
     if opt.log:
-        opt.writer = SummaryWriter(logdir=opt.out, comment='_%s_%s' % (
+        opt.writer = SummaryWriter(log_dir=opt.out, comment='_%s_%s' % (
             opt.out.replace('\\', '/').split('/')[-1], opt.model))
         opt.train_stats = open(opt.out.replace(
             '\\', '/') + '/train_stats.csv', 'w')
