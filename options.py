@@ -14,6 +14,9 @@ parser.add_argument('--ntrain', type=int, default=0, help='number of samples to 
 parser.add_argument('--scheduler', type=str, default='', help='options for a scheduler, format: stepsize,gamma')
 parser.add_argument('--log', action='store_true')
 parser.add_argument('--noise', type=str, default='', help='options for noise added, format: poisson,gaussVar')
+parser.add_argument('--lambda_adv', type=float, default=0.001, help='lambda')
+parser.add_argument('--lambda_pixel', type=float, default=0.01, help='lambda')
+
 
 # data
 parser.add_argument('--dataset', type=str, default='imagedataset', help='dataset to train')

@@ -174,8 +174,8 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
             # loss_content = criterion_content(gen_features, real_features)
 
             # Total generator loss
-            # loss_G = opt.lambda_adv * loss_GAN + opt.lambda_pixel * loss_pixel
-            loss_G = 0.001 * loss_GAN + 0.01 * loss_pixel
+            loss_G = opt.lambda_adv * loss_GAN + opt.lambda_pixel * loss_pixel
+            # loss_G = 0.001 * loss_GAN + 0.01 * loss_pixel
 
             loss_G.backward()
             optimizer_G.step()
