@@ -420,10 +420,23 @@ def train(dataloader, validloader, net, nepoch=10):
 
 if __name__ == '__main__':
 
+    def submitCmd():
+        import requests
+        import sys
+        import socket
+
+        machine = socket.gethostname()
+        newcmd = 'python ' + ' '.join(sys.argv[:])
+        print(newcmd)
+
+        requests.post('https://commandlog.imageheal.com/api/addNewEntryFromPython',data={'machine':machine,'newcmd':newcmd})
+
     try:
-        os.makedirs(opt.out)
-    except IOError:
-        pass
+        submitCmd()
+    except:
+        print(traceback.format_exc())
+
+    os.makedirs(opt.out,exist_ok=True)
 
     opt.fid = open(opt.out + '/log.txt', 'w')
     print(opt)
