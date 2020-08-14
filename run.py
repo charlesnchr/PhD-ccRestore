@@ -7,7 +7,7 @@ import numpy as np
 import torch.optim as optim
 import torchvision
 from torch.autograd import Variable
-
+import subprocess
 from models import GetModel, ESRGAN_Discriminator, ESRGAN_FeatureExtractor
 from datahandler import GetDataloaders
 
@@ -16,6 +16,12 @@ from plotting import testAndMakeCombinedPlots
 from torch.utils.tensorboard import SummaryWriter
 
 from options import parser
+import traceback
+import socket
+from datetime import datetime
+
+import sys
+
 
 opt = parser.parse_args()
 
@@ -59,6 +65,28 @@ if len(opt.weights) > 0 and not os.path.isfile(opt.weights):
         opt.n_resgroups = getopt('opt.n_resgroups', int)
         opt.n_resblocks = getopt('opt.n_resblocks', int)
         opt.n_feats = getopt('opt.n_feats', int)
+
+
+# data utils
+def submitCmd():
+    import requests
+
+    machine = socket.gethostname()
+    newcmd = 'python ' + ' '.join(sys.argv[:])
+    print(newcmd)
+
+    requests.post('https://commandlog.imageheal.com/api/addNewEntryFromPython',data={'machine':machine,'newcmd':newcmd})
+
+def cloudpush():
+    basename = os.path.basename(opt.out)
+    machine = socket.gethostname()
+    dt_string = datetime.now().strftime("%Y%m%d_%H%M")
+
+    outname = 'gdrive:/%s/%s-%s-%s' % ('01runs',dt_string,machine,basename)
+    print('starting subprocess for sync')
+    subprocess.check_output(["rclone","sync",opt.out,outname])
+
+
 
 
 def remove_dataparallel_wrapper(state_dict):
@@ -416,20 +444,10 @@ def train(dataloader, validloader, net, nepoch=10):
     if len(opt.scheduler) > 0:
         checkpoint['scheduler'] = scheduler.state_dict()
     torch.save(checkpoint, opt.out + '/final.pth')
+    
 
 
 if __name__ == '__main__':
-
-    def submitCmd():
-        import requests
-        import sys
-        import socket
-
-        machine = socket.gethostname()
-        newcmd = 'python ' + ' '.join(sys.argv[:])
-        print(newcmd)
-
-        requests.post('https://commandlog.imageheal.com/api/addNewEntryFromPython',data={'machine':machine,'newcmd':newcmd})
 
     try:
         submitCmd()
@@ -474,3 +492,9 @@ if __name__ == '__main__':
             print('time: ', time.perf_counter()-t0)
         testAndMakeCombinedPlots(net, validloader, opt)
     print('time: ', time.perf_counter()-t0)
+    if opt.cloud: 
+        print('uploading files')
+        opt.fid.close()
+        opt.train_stats.close()
+        opt.test_stats.close()
+        cloudpush()

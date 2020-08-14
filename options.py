@@ -17,7 +17,6 @@ parser.add_argument('--noise', type=str, default='', help='options for noise add
 parser.add_argument('--lambda_adv', type=float, default=0.001, help='lambda')
 parser.add_argument('--lambda_pixel', type=float, default=0.01, help='lambda')
 
-
 # data
 parser.add_argument('--dataset', type=str, default='imagedataset', help='dataset to train')
 parser.add_argument('--imageSize', type=int, default=24, help='the low resolution image size')
@@ -27,6 +26,7 @@ parser.add_argument('--root', type=str, default='/auto/homes/cnc39/phd/datasets'
 parser.add_argument('--server', dest='root', action='store_const', const='/auto/homes/cnc39/phd/datasets', help='whether to use server root preset: /auto/homes/cnc39/phd/datasets')
 parser.add_argument('--local', dest='root', action='store_const', const='C:/phd-data/datasets/', help='whether to use local root preset: C:/phd-data/datasets/')
 parser.add_argument('--out', type=str, default='results', help='folder to output model training results')
+parser.add_argument('--cloud', action='store_true', help='folder to output model training results')
 
 # computation 
 parser.add_argument('--workers', type=int, default=6, help='number of data loading workers')
