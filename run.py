@@ -249,6 +249,9 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
                 ), end=''
             )
 
+        if epoch < 3:
+            continue
+        
         # ---------------- Printing -----------------
         mean_loss_D = loss_D / len(dataloader)
         mean_loss_G = loss_G / len(dataloader)
