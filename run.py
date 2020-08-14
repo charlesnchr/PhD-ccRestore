@@ -173,7 +173,7 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
             # Measure pixel-wise loss against ground truth
             loss_pixel = criterion_pixel(gen_hr.squeeze(), imgs_hr.squeeze())
 
-            if epoch < 0:
+            if epoch < 3:
                 # Warm-up (pixel-wise loss only)
                 loss_pixel.backward()
                 optimizer_G.step()
