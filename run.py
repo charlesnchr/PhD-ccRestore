@@ -461,7 +461,3 @@ if __name__ == '__main__':
             print('time: ', time.perf_counter()-t0)
         testAndMakeCombinedPlots(net, validloader, opt)
     print('time: ', time.perf_counter()-t0)
-
-    if opt.log:
-        opt.writer.export_scalars_to_json(opt.out + "/rundata.json")
-        opt.writer.close()
