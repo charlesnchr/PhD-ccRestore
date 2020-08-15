@@ -75,7 +75,7 @@ def submitCmd():
     newcmd = 'python ' + ' '.join(sys.argv[:])
     print(newcmd)
 
-    requests.post('https://commandlog.imageheal.com/api/addNewEntryFromPython',data={'machine':machine,'newcmd':newcmd})
+    requests.post('https://commandlog.imageheal.com/api/addNewEntryFromPython',data={'machine':machine,'newcmd':newcmd}, auth=('cc','k74mnptd'))
 
 def cloudpush():
     basename = os.path.basename(opt.out)
