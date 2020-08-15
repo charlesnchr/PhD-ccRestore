@@ -251,7 +251,7 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
 
         if epoch < 3:
             continue
-        
+
         # ---------------- Printing -----------------
         mean_loss_D = loss_D / len(dataloader)
         mean_loss_G = loss_G / len(dataloader)
@@ -464,8 +464,7 @@ if __name__ == '__main__':
     print(opt, '\n', file=opt.fid)
     print('getting dataloader', opt.root)
     dataloader, validloader = GetDataloaders(opt)
-    net = GetModel(opt)
-
+    
     if opt.log:
         opt.writer = SummaryWriter(log_dir=opt.out, comment='_%s_%s' % (
             opt.out.replace('\\', '/').split('/')[-1], opt.model))
@@ -480,8 +479,16 @@ if __name__ == '__main__':
     t0 = time.perf_counter()
     if not opt.test:
         if opt.model.lower() == 'esrgan':
+            net = GetModel(opt)
             ESRGANtrain(dataloader, validloader, net, nepoch=opt.nepoch)
+        elif opt.model.lower() == 'wgan_binary':
+            import WGAN_binary
+            WGAN_binary.train(opt, dataloader, validloader)
+        elif opt.model.lower() == 'wgan':
+            import WGAN
+            WGAN.train(opt, dataloader, validloader)
         else:
+            net = GetModel(opt)
             train(dataloader, validloader, net, nepoch=opt.nepoch)
         # torch.save(net.state_dict(), opt.out + '/final.pth')
     else:

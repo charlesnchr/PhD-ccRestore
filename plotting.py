@@ -73,21 +73,44 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
             lr, sr, hr = lr_bat.data[j], sr_bat.data[j], hr_bat.data[j]
             
             if opt.task == 'segment':
-                if torch.max(hr.long()) == 0: 
-                    continue # all black, ignore
-                m = nn.LogSoftmax(dim=0)
-                sr = m(sr)
-                # print(sr)
-                sr = sr.argmax(dim=0, keepdim=True)
-                # print(sr.shape)
+                if opt.model == 'wgan':
+                    lr, sr, hr = toPIL(lr), toPIL(sr.float() / (opt.nch_out - 1)), toPIL(hr.float())
+                    plt.figure(figsize=(10,5))
+                    makesubplot(1, lr, hr, 'ns')
+                    bc_psnr, bc_ssim = makesubplot(2, lr, hr,'bc')
+                    sr_psnr, sr_ssim = makesubplot(3, sr, hr, 're')
+                    makesubplot(4, hr)
+                elif opt.model == 'wgan_binary':
+                    
+                    m = nn.LogSoftmax(dim=0)
+                    sr = m(sr)
+                    # print(sr)
+                    sr = sr.argmax(dim=0, keepdim=True)
+                    # print(sr.shape)
 
-                lr, sr, hr = toPIL(lr), toPIL(sr.float() / (opt.nch_out - 1)), toPIL(hr.float())
+                    lr, sr, hr = toPIL(lr), toPIL(sr.float() / (opt.nch_out - 1)), toPIL(hr.float())
 
-                plt.figure(figsize=(10,5))
-                makesubplot(1, lr, hr, 'ns')
-                bc_psnr, bc_ssim = makesubplot(2, lr, hr,'bc')
-                sr_psnr, sr_ssim = makesubplot(3, sr, hr, 're')
-                makesubplot(4, hr)
+                    plt.figure(figsize=(10,5))
+                    makesubplot(1, lr, hr, 'ns')
+                    bc_psnr, bc_ssim = makesubplot(2, lr, hr,'bc')
+                    sr_psnr, sr_ssim = makesubplot(3, sr, hr, 're')
+                    makesubplot(4, hr)
+                else:
+                    if torch.max(hr.long()) == 0: 
+                        continue # all black, ignore
+                    m = nn.LogSoftmax(dim=0)
+                    sr = m(sr)
+                    # print(sr)
+                    sr = sr.argmax(dim=0, keepdim=True)
+                    # print(sr.shape)
+
+                    lr, sr, hr = toPIL(lr), toPIL(sr.float() / (opt.nch_out - 1)), toPIL(hr.float())
+
+                    plt.figure(figsize=(10,5))
+                    makesubplot(1, lr, hr, 'ns')
+                    bc_psnr, bc_ssim = makesubplot(2, lr, hr,'bc')
+                    sr_psnr, sr_ssim = makesubplot(3, sr, hr, 're')
+                    makesubplot(4, hr)
             elif opt.task == 'classification':
                 predclass = sr.argmax(dim=0,keepdim=True)
                 if predclass.numpy() != hr.numpy():

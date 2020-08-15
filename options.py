@@ -16,6 +16,7 @@ parser.add_argument('--log', action='store_true')
 parser.add_argument('--noise', type=str, default='', help='options for noise added, format: poisson,gaussVar')
 parser.add_argument('--lambda_adv', type=float, default=0.001, help='lambda')
 parser.add_argument('--lambda_pixel', type=float, default=0.01, help='lambda')
+parser.add_argument('--gan_loss', type=float, default=0.03, help='gan loss percent')
 
 # data
 parser.add_argument('--dataset', type=str, default='imagedataset', help='dataset to train')

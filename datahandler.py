@@ -617,7 +617,7 @@ class GenericPickleDataset(Dataset):
                     hq = torch.flip(hq, [2])
 
             
-        return lq, hq, hq # hq, lq, lq
+        return lq, hq # hq, lq, lq
 
     def __len__(self):
         return self.len       
