@@ -255,25 +255,25 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
                         lr = lr[lr.shape[0] // 2].unsqueeze(0) # channels are not for colours but separate grayscale frames, take middle
                         sr = sr[sr.shape[0] // 2].unsqueeze(0)
                         hr = hr[hr.shape[0] // 2].unsqueeze(0)
-                    ns, re, gt = lr, sr, hr
 
-                    img = toPIL(ns)
+                    img = toPIL(lr)
                     
-                    if ns.shape[0] == 1:
-                        sm = ndimage.gaussian_filter(img, sigma=(0.6, 0.6), order=0)
-                        sm = np.expand_dims(sm, 2)
+                    if lr.shape[0] == 1:
+                        bc = ndimage.gaussian_filter(img, sigma=(0.6, 0.6), order=0)
+                        bc = np.expand_dims(bc, 2)
                     else:
-                        sm = ndimage.gaussian_filter(img, sigma=(0.5, 0.5, 0.2), order=0)
+                        bc = ndimage.gaussian_filter(img, sigma=(0.5, 0.5, 0.2), order=0)
 
                     # ---- Plotting -----
-                    ns, sm, re, gt = toPIL(ns), toPIL(sm), toPIL(re), toPIL(gt)
+                    lr, bc, sr, hr = toPIL(lr), toPIL(bc), toPIL(sr), toPIL(hr)
 
                     if count % opt.plotinterval == 0:
-                        plt.figure(figsize=(10,5))
-                        makesubplot(1, ns, gt, 'ns')
-                        bc_psnr, bc_ssim = makesubplot(2, sm, gt, 'sm')
-                        sr_psnr, sr_ssim = makesubplot(3, re, gt, 're')
-                        makesubplot(4, gt)
+                        if opt.test:
+                            plt.figure(figsize=(10,5))
+                        makesubplot(1, lr, hr, 'ns')
+                        bc_psnr, bc_ssim = makesubplot(2, bc, hr, 'sm')
+                        sr_psnr, sr_ssim = makesubplot(3, sr, hr, 're')
+                        makesubplot(4, hr)
             
             mean_bc_psnr += bc_psnr
             mean_sr_psnr += sr_psnr

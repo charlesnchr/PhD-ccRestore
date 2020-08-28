@@ -299,6 +299,13 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
     torch.save(checkpoint, opt.out + '/final.pth')
 
 
+from topologylayer.nn import LevelSetLayer2D, SumBarcodeLengths, TopKBarcodeLengths, BarcodePolyFeature
+layer = LevelSetLayer2D(size=(256,256), sublevel=False, maxdim=1)
+# feat = SumBarcodeLengths(dim=1)
+# feat = TopKBarcodeLengths(dim=1, k=2)
+feat = BarcodePolyFeature(dim=0, p=1, q=1)
+
+
 def train(dataloader, validloader, net, nepoch=10):
 
     start_epoch = 0
@@ -386,6 +393,32 @@ def train(dataloader, validloader, net, nepoch=10):
                     else:
                         loss = loss_function(
                             sr.squeeze(), hr.long().squeeze().cuda())
+                elif opt.task == 'persistenthomology':
+                    # loss = loss_function(sr, hr.cuda())
+
+                    #temp
+                    loss_pix = loss_function(
+                        sr, hr.cuda())
+                    
+                    hr = hr.view(1,256,256)
+                    dgm1,issub = layer(hr.float().cuda())
+
+                    # y = sr.float().requires_grad_(True)
+
+                    # a = torch.exp(20*sr)
+                    # b = torch.sum(a)
+                    # softmax = a/b
+                    # softmax[:,0,:,:] = softmax[:,0,:,:]*0
+                    # softmax[:,1,:,:] = softmax[:,1,:,:]*1
+                    # pred_labels = torch.sum(softmax,1,keepdim=True) # softargmax
+
+                    dgm2,issub = layer(sr)
+
+                    loss_topo = torch.sum((dgm1[1]-dgm2[1])**2) / (256*256)
+
+                    loss = loss_pix + loss_topo
+
+                    print('\nloss pix/topo %0.6f/%0.6f\n' % (loss_pix.data.item(),loss_topo.data.item()))                    
                 else:
                     loss = loss_function(sr, hr.cuda())
 
@@ -477,18 +510,19 @@ if __name__ == '__main__':
 
     import time
     t0 = time.perf_counter()
+    if opt.model.lower() == 'esrgan':
+        net = GetModel(opt)
+        ESRGANtrain(dataloader, validloader, net, nepoch=opt.nepoch)
+    elif opt.model.lower() == 'wgan_binary':
+        import WGAN_binary
+        WGAN_binary.train(opt, dataloader, validloader)
+    elif opt.model.lower() == 'wgan':
+        import WGAN
+        WGAN.train(opt, dataloader, validloader)
+    else:
+        net = GetModel(opt)
+    
     if not opt.test:
-        if opt.model.lower() == 'esrgan':
-            net = GetModel(opt)
-            ESRGANtrain(dataloader, validloader, net, nepoch=opt.nepoch)
-        elif opt.model.lower() == 'wgan_binary':
-            import WGAN_binary
-            WGAN_binary.train(opt, dataloader, validloader)
-        elif opt.model.lower() == 'wgan':
-            import WGAN
-            WGAN.train(opt, dataloader, validloader)
-        else:
-            net = GetModel(opt)
             train(dataloader, validloader, net, nepoch=opt.nepoch)
         # torch.save(net.state_dict(), opt.out + '/final.pth')
     else:
