@@ -920,7 +920,9 @@ class Fourier_SIM_dataset(Dataset):
             simimg = torch.tensor(simimg).unsqueeze(0).float()
         else:
             inputimg = torch.tensor(inputimg).float()
-            gt = torch.tensor(gt).unsqueeze(0).float()
+            gt = torch.tensor(gt).float()
+            if self.nch_out == 1:
+                gt = gt.unsqueeze(0)
             widefield = torch.tensor(widefield).unsqueeze(0).float()
             simimg = torch.tensor(simimg).unsqueeze(0).float()
 
