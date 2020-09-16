@@ -234,6 +234,12 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
 
                     # bc = sim
 
+                    # fix to deal with 3D deconvolution
+                    if opt.nch_out > 1:
+                        lr = lr[lr.shape[0] // 2] # channels are not for colours but separate grayscale frames, take middle
+                        sr = sr[sr.shape[0] // 2]
+                        hr = hr[hr.shape[0] // 2]
+
                     ### Common commands
                     lr, bc, sr, hr = toPIL(lr), toPIL(bc), toPIL(sr), toPIL(hr)
 
