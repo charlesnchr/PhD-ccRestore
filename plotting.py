@@ -32,7 +32,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
         return compare_ssim(I0, I1, multichannel=True)
 
     def makesubplot(idx, img, hr=None, title=''):
-        if opt.test:
+        if not opt.logimage:
             plt.subplot(1,4,idx)
             plt.gca().axis('off')
             plt.xticks([], [])
@@ -40,9 +40,9 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
             plt.imshow(img,cmap='gray')
         if not hr == None:
             psnr,ssim = PSNR_numpy(img,hr),SSIM_numpy(img,hr)
-            if opt.test: plt.title('%s (%0.2fdB/%0.3f)' % (title,psnr,ssim))
+            if not opt.logimage: plt.title('%s (%0.2fdB/%0.3f)' % (title,psnr,ssim))
             return psnr,ssim
-        if opt.test: plt.title(r'hr ($\infty$/1.000)')
+        if not opt.logimage: plt.title(r'hr ($\infty$/1.000)')
 
 
     count, mean_bc_psnr, mean_sr_psnr, mean_bc_ssim, mean_sr_ssim = 0,0,0,0,0
@@ -280,14 +280,14 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
             mean_bc_ssim += bc_ssim
             mean_sr_ssim += sr_ssim
 
-            if not opt.test:
+            if opt.log and not opt.test:
                 opt.writer.add_scalar('testimage_sr_psnr/%d' % count, sr_psnr,idx)
                 opt.writer.add_scalar('testimage_sr_ssim/%d' % count, sr_ssim,idx)
                 opt.writer.add_scalar('testimage_bc_psnr/%d' % count, bc_psnr,idx)
                 opt.writer.add_scalar('testimage_bc_ssim/%d' % count, bc_ssim,idx)
 
             if count % opt.plotinterval == 0:
-                if opt.test:  # for tests
+                if not opt.logimage: 
                     plt.tight_layout()
                     plt.subplots_adjust(wspace=0.01, hspace=0.01)
                     plt.savefig('%s/combined_%d.png' % (opt.out,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
@@ -298,7 +298,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
 
                 # plt.savefig('%s/combined_epoch%d_%d.png' % (opt.out,idx,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
 
-                if opt.log and not opt.test:
+                if opt.logimage:
                     if opt.task == 'segment':
                         opt.writer.add_image('lr/%d' % count, toTensor(lr),idx)
                         opt.writer.add_image('sr/%d' % count, toTensor(sr),idx)

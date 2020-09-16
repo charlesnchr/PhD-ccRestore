@@ -832,6 +832,7 @@ class Fourier_SIM_dataset(Dataset):
         self.scale = opt.scale
         self.task = opt.task
         self.nch_in = opt.nch_in
+        self.nch_out = opt.nch_out
         self.norm = opt.norm
         self.out = opt.out
 
@@ -842,12 +843,11 @@ class Fourier_SIM_dataset(Dataset):
         inputimg = stack[:self.nch_in]
 
         # adding noise
-        if 'noiseRetraining' in self.out:
-            noisefrac = np.linspace(0,1,10)
-            idx = np.random.randint(0,10)
-            inputimg = inputimg + noisefrac[idx]*np.std(I)*np.random.randn(*inputimg.shape)
-            inputimg = np.clip(inputimg,0,255).astype('uint16')
-
+        # if 'noiseRetraining' in self.out:
+        #     noisefrac = np.linspace(0,1,10)
+        #     idx = np.random.randint(0,10)
+        #     inputimg = inputimg + noisefrac[idx]*np.std(I)*np.random.randn(*inputimg.shape)
+        #     inputimg = np.clip(inputimg,0,255).astype('uint16')
 
         if self.nch_in == 6:
             inputimg = inputimg[[0,1,3,4,6,7]]
@@ -860,8 +860,10 @@ class Fourier_SIM_dataset(Dataset):
                 toprow = np.hstack((stack[-4,:,:],stack[-2,:,:]))
                 botrow = np.hstack((stack[-3,:,:],stack[-1,:,:]))
                 gt = np.vstack((toprow,botrow)).reshape(2*stack.shape[1],2*stack.shape[2])
+            elif self.nch_out > 1:
+                gt = stack[-self.nch_out:]
             else:
-                gt = stack[self.nch_in+1]
+                gt = stack[-1] # used to be index self.nch_in+1
         else:
             gt = stack[0] # if it doesn't exist, doesn't matter
 

@@ -30,7 +30,7 @@ def save_images_from_event(fn, tag, prefix, output_dir='./', maxexport = 0):
 # 'events.out.tfevents.1597287793.wizion-turtle.357022.0','sr/0'
 
 for i in range(20):
-    save_images_from_event(sys.argv[1],'hr/%d' % i, '%d' % i, output_dir='C:/temp/hr_%d' % i, maxexport=1)
+    save_images_from_event(sys.argv[1],'sr/%d' % i, '%d' % i, output_dir='C:/temp/sr_%d' % i, maxexport=0)
 
 
 
