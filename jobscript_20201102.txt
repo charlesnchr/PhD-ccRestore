@@ -1,6 +1,6 @@
-python gputest.py
-python gputest.py
-python gputest.py
-python gputest.py
-python gputest.py
-python gputest.py
+python gputest.py 1
+python gputest.py 2
+python gputest.py 3
+python gputest.py 4
+python gputest.py 5
+python gputest.py 6
