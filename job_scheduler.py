@@ -57,7 +57,7 @@ while True:
         
         if submit_job is not None:
             print('\nGPU %s to run job: %s' % (idx,jobs[count]))
-            subprocess.Popen('CUDA_VISIBLE_DEVICES=%s %s' % (idx,jobs[count]), shell=True)
+            subprocess.Popen('CUDA_VISIBLE_DEVICES=%s %s' % (idx,jobs[count]), shell=True, stdout=subprocess.DEVNULL)
             count += 1
             print('\nnow started command!')
             
@@ -65,8 +65,8 @@ while True:
                 print('\nsubmitted all jobs')
                 break
             
-            print('\nWaiting 20 seconds')
-            time.sleep(20)
+            print('\nWaiting 40 seconds')
+            time.sleep(40)
 
 
     # extra wait

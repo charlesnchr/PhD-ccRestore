@@ -7,8 +7,8 @@ x = torch.ones((1000,1000)).cuda()
 
 print('initialised')
 
-time.sleep(40)
+time.sleep(70)
 
 print('slept 10 secs, quitting')
 
-open('testlog' + idx + '.txt','w').write('hi from job %d' % idx)
+open('testlog' + idx + '.txt','w').write('hi from job %s' % idx)
