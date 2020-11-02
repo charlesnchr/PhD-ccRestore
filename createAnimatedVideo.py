@@ -53,11 +53,15 @@ def plotimage(lr,hr,sr):
     
     return img_arr
 
-def createVideo(basedir, index):
+## NOTE: to make openable with ImageJ
+# ffmpeg -i C:\Users\charl\Dropbox\0phd\ccRestore\0.avi -f avi -vcodec rawvideo convertedFile.avi
+# http://imagej.1557.x6.nabble.com/Importing-avi-td5000582.html
+
+def createVideo(outdir, basedir, index):
     lr = Image.open('%s/lr_%d/%d_0000.png' % (basedir, index, index))
     hr = Image.open('%s/hr_%d/%d_0000.png' % (basedir, index, index))
 
-    writer = skvideo.io.FFmpegWriter("%d.avi" % index,inputdict={'-r':str(fps)},outputdict={'-r':str(fps),"-pix_fmt": "yuv420p"})
+    writer = skvideo.io.FFmpegWriter("%s/%d.mp4" % (outdir,index),inputdict={'-r':str(fps)},outputdict={'-r':str(fps),"-pix_fmt": "yuv420p"})
 
     for subindex in range(N):
         sr = Image.open('%s/sr_%d/%d_%04d.png' % (basedir, index, index, subindex))
@@ -67,7 +71,10 @@ def createVideo(basedir, index):
 
         print('[%d/%d]' % (subindex+1,N),end='\r')
 
+    print('\nVideo for %d done' % index)
     writer.close()
 
+for i in range(20):
+    createVideo("C:/temp","C:/temp",i)
 
-createVideo("C:/temp",0)
+

@@ -292,17 +292,19 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
                 opt.writer.add_scalar('testimage_bc_psnr/%d' % count, bc_psnr,idx)
                 opt.writer.add_scalar('testimage_bc_ssim/%d' % count, bc_ssim,idx)
 
-            if count % opt.plotinterval == 0:
+            if opt.test:
+                idx = 0
+            if idx % opt.plotinterval == 0 or idx == 0 or idx == opt.nepoch - 1:
                 if not opt.logimage: 
                     plt.tight_layout()
                     plt.subplots_adjust(wspace=0.01, hspace=0.01)
-                    plt.savefig('%s/combined_%d.png' % (opt.out,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
-                    lr.save('%s/lr_%d.png' % (opt.out,count))
-                    sr.save('%s/sr_%d.png' % (opt.out,count))
-                    hr.save('%s/hr_%d.png' % (opt.out,count))
+                    # plt.savefig('%s/combined_%d.png' % (opt.out,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
+                    plt.savefig('%s/combined_epoch%d_%d.png' % (opt.out,idx,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
+                    lr.save('%s/lr_epoch%d_%d.png' % (opt.out,idx,count))
+                    sr.save('%s/sr_epoch%d_%d.png' % (opt.out,idx,count))
+                    hr.save('%s/hr_epoch%d_%d.png' % (opt.out,idx,count))
                     plt.close()
 
-                # plt.savefig('%s/combined_epoch%d_%d.png' % (opt.out,idx,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
 
                 if opt.logimage:
                     if opt.task == 'segment':

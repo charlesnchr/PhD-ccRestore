@@ -231,7 +231,7 @@ def EvaluateModel(opt):
         if ext.lower() == '.tif':
             img = io.imread(imgfile)
         else:
-            img = np.array(Image.open(imgfile))/255
+            img = np.array(Image.open(imgfile)) / 255
 
         # img = io.imread(imgfile)
         # img = (img - np.min(img)) / (np.max(img) - np.min(img)) 
@@ -239,18 +239,20 @@ def EvaluateModel(opt):
         # filenames for saving
         idxstr = '%04d' % imgidx
         if opt.out == 'root': # save next to orignal
-            savepath_out = imgfile.replace('.' + ext,'_out_' + idxstr + '.png')
-            savepath_in = imgfile.replace('.' + ext,'_in_' + idxstr + '.png')
+            savepath_out = imgfile.replace(ext,'_out_' + idxstr + '.png')
+            savepath_in = imgfile.replace(ext,'_in_' + idxstr + '.png')
         else:
             savepath_out = '%s/%s_out.png' % (opt.out,idxstr)
             savepath_in = '%s/%s_in.png' % (opt.out,idxstr)
 
         # process image
         if len(img.shape) == 2:            
-            processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr)
+            p1,p99 = np.percentile(img,1),np.percentile(img,99)
+            imgnorm = exposure.rescale_intensity(img,in_range=(p1,p99))
+            processImage(net,opt,imgfile,imgnorm,savepath_in,savepath_out,idxstr)
         elif img.shape[2] <= 3:
             print('removing colour channel')
-            img = img[:,:,0]
+            img = np.max(img, 2)
             processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr)
         else: # more than 3 channels, assuming stack
             basefolder = basepath
