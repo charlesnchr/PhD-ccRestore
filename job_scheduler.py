@@ -6,7 +6,7 @@ import sys
 max_concurrent_jobs = 2
 count = 0
 
-if len(sys.argv < 2):
+if len(sys.argv) < 2:
     print('provide command line argument with a jobscript file')
     sys.exit(0)
 
