@@ -48,10 +48,9 @@ while True:
             memory_used = int(line.split('/')[0].split('|')[-1].strip())
             memory_total = int(line.split('/')[1].split('MB')[0].strip())
             
-            print('\ngpu',idx,'has',memory_used,memory_total,'ratio',memory_used/memory_total)
+            # print('\ngpu',idx,'has',memory_used,memory_total,'ratio',memory_used/memory_total)
 
             if len(line.split('|')[-1].strip()) == 0:
-                print('gpu',idx,'is free')
                 submit_job = idx
                 break
         
