@@ -16,6 +16,7 @@ os.makedirs(outdir, exist_ok=True)
 
 # for DIV2k
 files = glob.glob("/auto/homes/cnc39/phd/datasets/DIV2K/DIV2K_train_HR/*.png") 
+# files = glob.glob("D:/DIV2K/DIV2K_train_HR/*.png") 
 
 # single test image
 # files = glob.glob('TestImage.png')
