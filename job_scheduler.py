@@ -50,7 +50,7 @@ while True:
             
             print('\ngpu',idx,'has',memory_used,memory_total,'ratio',memory_used/memory_total)
 
-            if line.split('|')[-1].isspace():
+            if len(line.split('|')[-1].strip()) == 0:
                 print('gpu',idx,'is free')
                 submit_job = idx
                 break
@@ -72,6 +72,6 @@ while True:
     # extra wait
     time.sleep(2)
     tdiff = time.perf_counter() - t0
-    print('status: submitted %d jobs out of %d, currently running: %d, time spent %0.1f s' % (count+1,len(jobs),current_jobs,tdiff),end='\r')
+    print('status: submitted %d jobs out of %d, currently running: %d, time spent %0.1f s' % (count,len(jobs),current_jobs,tdiff),end='\r')
     
 print('\nscheduler exiting')
