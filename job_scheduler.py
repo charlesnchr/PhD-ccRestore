@@ -32,7 +32,7 @@ while True:
         idx = line.split(']')[0].split('[')[-1]
         
         if 'cnc39' in line:
-            print('\ngpu',idx,'used by me')
+            # print('\ngpu',idx,'used by me')
             current_jobs += 1
 
     if current_jobs < max_concurrent_jobs:
