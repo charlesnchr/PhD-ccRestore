@@ -7,7 +7,7 @@ count = 0
 while True:
     gpustat = subprocess.check_output('gpustat')
     print('we have',gpustat)
-    gpustat = str(gpustat).split('\n')
+    gpustat = str(gpustat).split('\\n')
     print('after string conversion',gpustat)
     for idx,line in enumerate(gpustat):
         if '|' not in line: continue
