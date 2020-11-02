@@ -1,40 +1,77 @@
 import subprocess
 import time
 import threading 
+import sys
 
+max_concurrent_jobs = 2
 count = 0
+
+if len(sys.argv < 2):
+    print('provide command line argument with a jobscript file')
+    sys.exit(0)
+
+if len(sys.argv) > 2:
+    max_concurrent_jobs = int(sys.argv[2])
+
+jobscript = sys.argv[1]
+t0 = time.perf_counter()
+jobs = open(jobscript,'r').read().split('\n')
+
+print('Given %d jobs' % len(jobs))
 
 while True:
     gpustat = subprocess.check_output('gpustat')
-    print('we have',gpustat)
     gpustat = str(gpustat).split('\\n')
-    print('after string conversion',gpustat)
+
+
+    # check current jobs
+    current_jobs = 0
     for idx,line in enumerate(gpustat):
         if '|' not in line: continue
+          
         idx = line.split(']')[0].split('[')[-1]
-        if line.split('|')[-1].isspace():
-            print('gpu',idx,'is free')
-        if 'jm2311' in line:
-            print('gpu',idx,'occupied by jm2311')
+        
         if 'cnc39' in line:
-            print('gpu',idx,'by me')
+            print('\ngpu',idx,'used by me')
+            current_jobs += 1
+
+    if current_jobs < max_concurrent_jobs:
+        # check for available gpu
+        submit_job = None
+
+        for idx,line in enumerate(gpustat):
+            if '|' not in line: continue
+                
+            idx = line.split(']')[0].split('[')[-1]
+
+            # mem could be used to squeeze on only mildly busy GPUs
+            memory_used = int(line.split('/')[0].split('|')[-1].strip())
+            memory_total = int(line.split('/')[1].split('MB')[0].strip())
+            
+            # print('gpu',idx,'has',memory_used,memory_total,'ratio',memory_used/memory_total)
+
+            if line.split('|')[-1].isspace():
+                print('gpu',idx,'is free')
+                submit_job = idx
+                break
         
-        memory_used = int(line.split('/')[0].split('|')[-1].strip())
-        memory_total = int(line.split('/')[1].split('MB')[0].strip())
+        if submit_job is not None:
+            print('\nGPU %d to run job: %s' % (idx,jobs[count]))
+            subprocess.Popen('CUDA_VISIBLE_DEVICES=%s %s' % (idx,jobs[count]), shell=True, stdout=subprocess.DEVNULL)
+            count += 1
+            print('\nnow started command!')
+            
+            if count == len(jobs):
+                print('\nsubmitted all jobs')
+                break
+            
+            print('\nWaiting 20 seconds')
+            time.sleep(20)
 
-        print('gpu',idx,'has',memory_used,memory_total,'ratio',memory_used/memory_total)
 
+    # extra wait
     time.sleep(2)
-    count += 1
-    if count == 3:
-        print('now running job')
-        subprocess.Popen('python gputest.py', shell=True)
-        print('now started command! waiting a bit')
-        time.sleep(20)
+    tdiff = time.perf_counter() - t0
+    print('status: submitted %d jobs out of %d, currently running: %d, time spent %0.1f s' % (count+1,len(jobs),current_jobs,tdiff),end='\r')
     
-    if count == 4:
-        'now quitting'
-        break
-
-    print('\n\n')
-        
+print('\nscheduler exiting')

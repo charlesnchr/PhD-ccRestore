@@ -1,9 +1,8 @@
-
-
 import torch
 import time
+import sys
 
-
+idx = sys.argv[1]
 x = torch.ones((1000,1000)).cuda()
 
 print('initialised')
@@ -11,3 +10,5 @@ print('initialised')
 time.sleep(40)
 
 print('slept 10 secs, quitting')
+
+open('testlog' + idx + '.txt','w').write('hi from job %d' % idx)
