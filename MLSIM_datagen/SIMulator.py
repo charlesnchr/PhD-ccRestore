@@ -7,23 +7,23 @@ from SIMulator_functions import *
 import glob
 import os
 import argparse
-
+from multiprocessing import Pool
 
 # ------------ Options --------------
-nrep = 3
-outdir = "SIMdata"
+nrep = 1
+outdir = "/local/scratch/cnc39/SIMdata-20201102"
 os.makedirs(outdir, exist_ok=True)
 
 # for DIV2k
-# files = glob.glob("D:/DIV2K/DIV2K_train_HR/*.png") 
+files = glob.glob("/auto/homes/cnc39/phd/datasets/DIV2K/DIV2K_train_HR/*.png") 
 
 # single test image
-files = glob.glob('TestImage.png')
+# files = glob.glob('TestImage.png')
 
 
 # ------------ Parameters-------------
 def GetParams(): # uniform randomisation
-    opt = argparse.Namespace]()
+    opt = argparse.Namespace()
 
     # phase shifts for each stripe
     opt.Nshifts = 5
@@ -57,7 +57,7 @@ def GetParams(): # uniform randomisation
     return opt
 
 def GetParamsExtreme(urand): # uniform randomisation
-    opt = argparse.Namespace]()
+    opt = argparse.Namespace()
 
     # phase shifts for each stripe
     opt.Nshifts = 5
@@ -114,7 +114,7 @@ def processImage(file):
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        with Pool(6) as p:
+        with Pool(40) as p:
             p.map(processImage,files)
     elif sys.argv[1] == 'showextremes':
         sumval = 0

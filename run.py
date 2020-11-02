@@ -299,11 +299,12 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
     torch.save(checkpoint, opt.out + '/final.pth')
 
 
-from topologylayer.nn import LevelSetLayer2D, SumBarcodeLengths, TopKBarcodeLengths, BarcodePolyFeature
-layer = LevelSetLayer2D(size=(256,256), sublevel=False, maxdim=1)
-# feat = SumBarcodeLengths(dim=1)
-# feat = TopKBarcodeLengths(dim=1, k=2)
-feat = BarcodePolyFeature(dim=0, p=1, q=1)
+#from topologylayer.nn import LevelSetLayer2D, SumBarcodeLengths, TopKBarcodeLengths, BarcodePolyFeature
+#layer = LevelSetLayer2D(size=(256,256), sublevel=False, maxdim=1)
+
+## feat = SumBarcodeLengths(dim=1)
+## feat = TopKBarcodeLengths(dim=1, k=2)
+#feat = BarcodePolyFeature(dim=0, p=1, q=1)
 
 
 def train(dataloader, validloader, net, nepoch=10):
