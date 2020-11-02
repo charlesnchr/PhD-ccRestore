@@ -48,7 +48,7 @@ while True:
             memory_used = int(line.split('/')[0].split('|')[-1].strip())
             memory_total = int(line.split('/')[1].split('MB')[0].strip())
             
-            # print('gpu',idx,'has',memory_used,memory_total,'ratio',memory_used/memory_total)
+            print('\ngpu',idx,'has',memory_used,memory_total,'ratio',memory_used/memory_total)
 
             if line.split('|')[-1].isspace():
                 print('gpu',idx,'is free')
@@ -57,7 +57,7 @@ while True:
         
         if submit_job is not None:
             print('\nGPU %d to run job: %s' % (idx,jobs[count]))
-            subprocess.Popen('CUDA_VISIBLE_DEVICES=%s %s' % (idx,jobs[count]), shell=True, stdout=subprocess.DEVNULL)
+            subprocess.Popen('CUDA_VISIBLE_DEVICES=%s %s' % (idx,jobs[count]), shell=True)
             count += 1
             print('\nnow started command!')
             
