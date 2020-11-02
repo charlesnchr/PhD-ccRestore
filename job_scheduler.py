@@ -56,7 +56,7 @@ while True:
                 break
         
         if submit_job is not None:
-            print('\nGPU %d to run job: %s' % (idx,jobs[count]))
+            print('\nGPU %s to run job: %s' % (idx,jobs[count]))
             subprocess.Popen('CUDA_VISIBLE_DEVICES=%s %s' % (idx,jobs[count]), shell=True)
             count += 1
             print('\nnow started command!')
