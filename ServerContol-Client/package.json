@@ -1,0 +1,14 @@
+{
+    "name": "server-control-client",
+    "version": "0.1.0",
+    "private": true,
+    "dependencies": {
+    },
+    "scripts": {
+      "start": "nodemon client.js"
+    },
+    "devDependencies": {
+      "nodemon": "^2.0.4"
+    }
+  }
+  
