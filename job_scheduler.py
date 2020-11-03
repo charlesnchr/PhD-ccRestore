@@ -16,6 +16,7 @@ if len(sys.argv) > 2:
 jobscript = sys.argv[1]
 t0 = time.perf_counter()
 jobs = open(jobscript,'r').read().split('\n')
+jobs = [job for job in jobs if job.strip() != ''] # remove empty lines
 submission_times = {}
 
 print('Given %d jobs' % len(jobs))

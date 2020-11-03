@@ -24,6 +24,7 @@ parser.add_argument('--Nshifts', type=int, default=3)
 parser.add_argument('--Nangles', type=int, default=3)
 parser.add_argument('--k2', type=float, default=126.0)
 parser.add_argument('--k2_err', type=float, default=30.0)
+parser.add_argument('--usePSF', type=int, default=0)
 
 
 opt = parser.parse_args()
@@ -59,7 +60,7 @@ def GetParams(): # uniform randomisation
     # in percentage
     SIMopt.NoiseLevel = 8 + 0*8*(np.random.rand()-0.5)
     # 1(to blur using PSF), 0(to blur using OTF)
-    SIMopt.UsePSF = 0
+    SIMopt.UsePSF = opt.usePSF
     # include OTF and GT in stack
     SIMopt.OTF_and_GT = True
 
