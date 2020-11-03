@@ -18,7 +18,7 @@ plt.switch_backend('agg')
 toTensor = transforms.ToTensor()  
 toPIL = transforms.ToPILImage()      
 
-def testAndMakeCombinedPlots(net,loader,opt,idx=None):
+def testAndMakeCombinedPlots(net,loader,opt,idx=0):
 
     def PSNR_numpy(p0,p1):
         I0,I1 = np.array(p0)/255.0, np.array(p1)/255.0
@@ -31,18 +31,18 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
         # return structural_similarity(I0, I1, multichannel=True)
         return compare_ssim(I0, I1, multichannel=True)
 
-    def makesubplot(idx, img, hr=None, title=''):
-        if not opt.logimage:
-            plt.subplot(1,4,idx)
+    def calcScores(img, hr=None, makeplotBool=False, plotidx=0, title=None):
+        if makeplotBool:
+            plt.subplot(1,4,plotidx)
             plt.gca().axis('off')
             plt.xticks([], [])
             plt.yticks([], [])
             plt.imshow(img,cmap='gray')
         if not hr == None:
             psnr,ssim = PSNR_numpy(img,hr),SSIM_numpy(img,hr)
-            if not opt.logimage: plt.title('%s (%0.2fdB/%0.3f)' % (title,psnr,ssim))
+            if makeplotBool: plt.title('%s (%0.2fdB/%0.3f)' % (title,psnr,ssim))
             return psnr,ssim
-        if not opt.logimage: plt.title(r'hr ($\infty$/1.000)')
+        if makeplotBool: plt.title(r'GT ($\infty$/1.000)')
 
 
     count, mean_bc_psnr, mean_sr_psnr, mean_bc_ssim, mean_sr_ssim = 0,0,0,0,0
@@ -69,17 +69,21 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
                     sr_bat = net(lr_bat)
         sr_bat = sr_bat.cpu()
 
-        for j in range(len(lr_bat)):
+        for j in range(len(lr_bat)): # loop over batch
+            makeplotBool = (idx < 5 or (idx+1) % opt.plotinterval == 0 or idx == opt.nepoch - 1) and count < opt.nplot
+            if opt.test: makeplotBool = True
+            if opt.logimage: makeplotBool = False
+
             lr, sr, hr = lr_bat.data[j], sr_bat.data[j], hr_bat.data[j]
             
             if opt.task == 'segment':
                 if opt.model == 'wgan':
                     lr, sr, hr = toPIL(lr), toPIL(sr.float() / (opt.nch_out - 1)), toPIL(hr.float())
-                    plt.figure(figsize=(10,5))
-                    makesubplot(1, lr, hr, 'ns')
-                    bc_psnr, bc_ssim = makesubplot(2, lr, hr,'bc')
-                    sr_psnr, sr_ssim = makesubplot(3, sr, hr, 're')
-                    makesubplot(4, hr)
+                    if makeplotBool: plt.figure(figsize=(10,5))
+                    calcScores(lr, hr, makeplotBool, plotidx=1, title='ns')
+                    bc_psnr, bc_ssim = calcScores(lr, hr, makeplotBool, plotidx=2, title='bc')
+                    sr_psnr, sr_ssim = calcScores(sr, hr, makeplotBool, plotidx=3, title='re')
+                    calcScores(hr, None, makeplotBool, plotidx=4)
                 elif opt.model == 'wgan_binary':
                     
                     m = nn.LogSoftmax(dim=0)
@@ -90,11 +94,11 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
 
                     lr, sr, hr = toPIL(lr), toPIL(sr.float() / (opt.nch_out - 1)), toPIL(hr.float())
 
-                    plt.figure(figsize=(10,5))
-                    makesubplot(1, lr, hr, 'ns')
-                    bc_psnr, bc_ssim = makesubplot(2, lr, hr,'bc')
-                    sr_psnr, sr_ssim = makesubplot(3, sr, hr, 're')
-                    makesubplot(4, hr)
+                    if makeplotBool: plt.figure(figsize=(10,5))
+                    calcScores(lr, hr, makeplotBool, plotidx=1, title='ns')
+                    bc_psnr, bc_ssim = calcScores(lr, hr, makeplotBool, plotidx=2, title='bc')
+                    sr_psnr, sr_ssim = calcScores(sr, hr, makeplotBool, plotidx=3, title='re')
+                    calcScores(hr, None, makeplotBool, plotidx=4)
                 else:
                     if torch.max(hr.long()) == 0: 
                         continue # all black, ignore
@@ -106,11 +110,11 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
 
                     lr, sr, hr = toPIL(lr), toPIL(sr.float() / (opt.nch_out - 1)), toPIL(hr.float())
 
-                    plt.figure(figsize=(10,5))
-                    makesubplot(1, lr, hr, 'ns')
-                    bc_psnr, bc_ssim = makesubplot(2, lr, hr,'bc')
-                    sr_psnr, sr_ssim = makesubplot(3, sr, hr, 're')
-                    makesubplot(4, hr)
+                    if makeplotBool: plt.figure(figsize=(10,5))
+                    calcScores(lr, hr, makeplotBool, plotidx=1, title='ns')
+                    bc_psnr, bc_ssim = calcScores(lr, hr, makeplotBool, plotidx=2, title='bc')
+                    sr_psnr, sr_ssim = calcScores(sr, hr, makeplotBool, plotidx=3, title='re')
+                    calcScores(hr, None, makeplotBool, plotidx=4)
             elif opt.task == 'classification':
                 predclass = sr.argmax(dim=0,keepdim=True)
                 if predclass.numpy() != hr.numpy():
@@ -139,18 +143,12 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
 
                     lr, bc, sr, hr = toPIL(lr), toPIL(bc), toPIL(sr), toPIL(hr)
                     
-                    if count % opt.plotinterval == 0:
-                        plt.figure(figsize=(10,5))
-                        makesubplot(1, lr, hr,'lr')
-                        bc_psnr, bc_ssim = makesubplot(2, bc, hr,'bc')
-                        sr_psnr, sr_ssim = makesubplot(3, sr, hr,'sr')
-                        makesubplot(4, hr)
+                    if makeplotBool: plt.figure(figsize=(10,5))
+                    calcScores(lr, hr,makeplotBool, plotidx=1, title='lr')
+                    bc_psnr, bc_ssim = calcScores(bc, hr,makeplotBool, plotidx=2, title='bc')
+                    sr_psnr, sr_ssim = calcScores(sr, hr,makeplotBool, plotidx=3, title='sr')
+                    calcScores(hr, None, makeplotBool, plotidx=4)
                 elif 'sim' in opt.dataset: # SIM dataset 
-                    # if opt.dataset == 'fourierfreqsim':
-                    #     print(sr,hr)
-                    #     return
-                    
-                    ### Direct space output from model
 
                     if opt.task == 'simin_simout' or opt.task == 'wfin_simout':
                         ## sim target
@@ -164,75 +162,6 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
                         wf_bat = bat[3]
                         bc, hr, lr = sim_bat.data[j], hr_bat.data[j], wf_bat.data[j]
                         sr = torch.clamp(sr,min=0,max=1) 
-
-
-                    '''
-                    # lr = torch.mean(lr,0).unsqueeze(0) # widefield
-                    # lr = lr[0].unsqueeze(0) # first channel
-                    '''
-
-
-                    ### Fourer transformed output from model
-
-                    # gt_bat = bat[2]
-                    # wf_bat = bat[3]
-                    # sim_bat = bat[4]
-                    # bc, hr, lr, sim = hr_bat.data[j], gt_bat.data[j], wf_bat.data[j], sim_bat.data[j]
-                    # bc, hr, lr = hr_bat.data[j], gt_bat.data[j], wf_bat.data[j]
-                    # # lr = torch.mean(lr,0).unsqueeze(0) # widefield
-
-                    # # reconstruct output img
-                    # sr = sr.numpy()
-                    # frp = sr[0]
-                    # fcp = sr[1]
-                    # frm = sr[2]
-                    # fcm = sr[3]
-                    # sr = (frp - frm) + 1j*(fcp - fcm)
-                    # sr = np.real(np.fft.ifft2((sr)))
-                    # sr = torch.tensor(sr / np.max(sr)).unsqueeze(0).float()
-                    # sr = torch.clamp(sr,min=0,max=1)
-
-                    # # bc = bc.numpy()
-                    # # frp = bc[0]
-                    # # fcp = bc[1]
-                    # # frm = bc[2]
-                    # # fcm = bc[3]
-                    # # bc = (frp - frm) + 1j*(fcp - fcm)
-                    # # bc = np.real(np.fft.ifft2((np.fft.ifftshift(bc))))
-                    # # bc = torch.tensor(bc / np.max(bc)).unsqueeze(0).float()
-
-                    # bc = sim
-
-
-
-                    ### Fourer transformed output from model 2 channels
-
-                    # gt_bat = bat[2]
-                    # wf_bat = bat[3]
-                    # sim_bat = bat[4]
-                    # bc, hr, lr, sim = hr_bat.data[j], gt_bat.data[j], wf_bat.data[j], sim_bat.data[j]
-                    # bc, hr, lr = hr_bat.data[j], gt_bat.data[j], wf_bat.data[j]
-                    # # lr = torch.mean(lr,0).unsqueeze(0) # widefield
-
-                    # # reconstruct output img
-                    # sr = sr.numpy()
-                    # freal = sr[0]
-                    # fimag = sr[1]
-                    # sr = freal + 1j*fimag
-                    # sr = np.real(np.fft.ifft2((sr)))
-                    # sr = torch.tensor(sr / np.max(sr)).unsqueeze(0).float()
-                    # sr = torch.clamp(sr,min=0,max=1)
-
-                    # # bc = bc.numpy()
-                    # # frp = bc[0]
-                    # # fcp = bc[1]
-                    # # frm = bc[2]
-                    # # fcm = bc[3]
-                    # # bc = (frp - frm) + 1j*(fcp - fcm)
-                    # # bc = np.real(np.fft.ifft2((np.fft.ifftshift(bc))))
-                    # # bc = torch.tensor(bc / np.max(bc)).unsqueeze(0).float()
-
-                    # bc = sim
 
                     # fix to deal with 3D deconvolution
                     if opt.nch_out > 1:
@@ -248,13 +177,12 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
                         bc = bc.resize((1024,1024), resample=Image.BICUBIC)
                         hr = hr.resize((1024,1024), resample=Image.BICUBIC)
 
-                    if count % opt.plotinterval == 0:
-                        plt.figure(figsize=(10,5))
-                        makesubplot(1, lr, hr,'WF')
-                        bc_psnr, bc_ssim = makesubplot(2, bc, hr,'SIM')
-                        sr_psnr, sr_ssim = makesubplot(3, sr, hr,'SR')
-                        makesubplot(4, hr,title='GT')                    
-                else:
+                    if makeplotBool: plt.figure(figsize=(10,5))
+                    calcScores(lr, hr, makeplotBool, plotidx=1, title='WF')
+                    bc_psnr, bc_ssim = calcScores(bc, hr, makeplotBool, plotidx=2, title='SIM')
+                    sr_psnr, sr_ssim = calcScores(sr, hr, makeplotBool, plotidx=3, title='SR')
+                    calcScores(hr, None, makeplotBool, plotidx=4)
+                else: # denoising / restoration
                     sr = torch.clamp(sr,min=0,max=1)
 
                     if lr.shape[0] > 3:
@@ -273,13 +201,11 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
                     # ---- Plotting -----
                     lr, bc, sr, hr = toPIL(lr), toPIL(bc), toPIL(sr), toPIL(hr)
 
-                    if count % opt.plotinterval == 0:
-                        if opt.test:
-                            plt.figure(figsize=(10,5))
-                        makesubplot(1, lr, hr, 'ns')
-                        bc_psnr, bc_ssim = makesubplot(2, bc, hr, 'sm')
-                        sr_psnr, sr_ssim = makesubplot(3, sr, hr, 're')
-                        makesubplot(4, hr)
+                    if makeplotBool: plt.figure(figsize=(10,5))
+                    calcScores(lr, hr, makeplotBool, plotidx=1, title='ns')
+                    bc_psnr, bc_ssim = calcScores(bc, hr, makeplotBool, plotidx=2, title='sm')
+                    sr_psnr, sr_ssim = calcScores(sr, hr, makeplotBool, plotidx=3, title='re')
+                    calcScores(hr, None, makeplotBool, plotidx=4)
             
             mean_bc_psnr += bc_psnr
             mean_sr_psnr += sr_psnr
@@ -287,35 +213,33 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
             mean_sr_ssim += sr_ssim
 
             if opt.log and not opt.test:
-                opt.writer.add_scalar('testimage_sr_psnr/%d' % count, sr_psnr,idx)
-                opt.writer.add_scalar('testimage_sr_ssim/%d' % count, sr_ssim,idx)
-                opt.writer.add_scalar('testimage_bc_psnr/%d' % count, bc_psnr,idx)
-                opt.writer.add_scalar('testimage_bc_ssim/%d' % count, bc_ssim,idx)
+                opt.writer.add_scalar('testimage_sr_psnr/%d' % count, sr_psnr,idx+1)
+                opt.writer.add_scalar('testimage_sr_ssim/%d' % count, sr_ssim,idx+1)
+                opt.writer.add_scalar('testimage_bc_psnr/%d' % count, bc_psnr,idx+1)
+                opt.writer.add_scalar('testimage_bc_ssim/%d' % count, bc_ssim,idx+1)
 
-            if opt.test:
-                idx = 0
-            if idx % opt.plotinterval == 0 or idx == 0 or idx == opt.nepoch - 1:
-                if not opt.logimage: 
-                    plt.tight_layout()
-                    plt.subplots_adjust(wspace=0.01, hspace=0.01)
-                    # plt.savefig('%s/combined_%d.png' % (opt.out,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
-                    plt.savefig('%s/combined_epoch%d_%d.png' % (opt.out,idx,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
-                    lr.save('%s/lr_epoch%d_%d.png' % (opt.out,idx,count))
-                    sr.save('%s/sr_epoch%d_%d.png' % (opt.out,idx,count))
-                    hr.save('%s/hr_epoch%d_%d.png' % (opt.out,idx,count))
-                    plt.close()
+            if makeplotBool:
+                plt.tight_layout()
+                plt.subplots_adjust(wspace=0.01, hspace=0.01)
+                # plt.savefig('%s/combined_%d.png' % (opt.out,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
+                plt.savefig('%s/combined_epoch%d_%d.png' % (opt.out,idx+1,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
+                plt.close()
+                if opt.test:
+                    lr.save('%s/lr_epoch%d_%d.png' % (opt.out,idx+1,count))
+                    sr.save('%s/sr_epoch%d_%d.png' % (opt.out,idx+1,count))
+                    hr.save('%s/hr_epoch%d_%d.png' % (opt.out,idx+1,count))
 
 
-                if opt.logimage:
-                    if opt.task == 'segment':
-                        opt.writer.add_image('lr/%d' % count, toTensor(lr),idx)
-                        opt.writer.add_image('sr/%d' % count, toTensor(sr),idx)
-                        opt.writer.add_image('hr/%d' % count, toTensor(hr),idx)
-                    else:
-                        opt.writer.add_image('lr/%d' % count, toTensor(lr),idx)
-                        opt.writer.add_image('bc/%d' % count, toTensor(bc),idx)
-                        opt.writer.add_image('sr/%d' % count, toTensor(sr),idx)
-                        opt.writer.add_image('hr/%d' % count, toTensor(hr),idx)
+            if opt.logimage:
+                if opt.task == 'segment':
+                    opt.writer.add_image('lr/%d' % count, toTensor(lr),idx+1)
+                    opt.writer.add_image('sr/%d' % count, toTensor(sr),idx+1)
+                    opt.writer.add_image('hr/%d' % count, toTensor(hr),idx+1)
+                else:
+                    opt.writer.add_image('lr/%d' % count, toTensor(lr),idx+1)
+                    opt.writer.add_image('bc/%d' % count, toTensor(bc),idx+1)
+                    opt.writer.add_image('sr/%d' % count, toTensor(sr),idx+1)
+                    opt.writer.add_image('hr/%d' % count, toTensor(hr),idx+1)
 
             count += 1
             if count == opt.ntest: break
@@ -330,8 +254,8 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=None):
     print(summarystr,file=opt.fid)
     opt.fid.flush()
     if opt.log and not opt.test:
-        opt.writer.add_scalar('test/psnr', mean_sr_psnr / count,idx)
-        opt.writer.add_scalar('test/ssim', mean_sr_ssim / count,idx)
+        opt.writer.add_scalar('test/psnr', mean_sr_psnr / count,idx+1)
+        opt.writer.add_scalar('test/ssim', mean_sr_ssim / count,idx+1)
         t1 = time.perf_counter() - opt.t0
         mem = torch.cuda.memory_allocated()
         print(idx,t1,mem,mean_sr_psnr / count, mean_sr_ssim / count, file=opt.test_stats)

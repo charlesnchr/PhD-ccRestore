@@ -23,48 +23,52 @@ from datetime import datetime
 import sys
 
 
-opt = parser.parse_args()
+def options():
 
-if opt.norm == '':
-    opt.norm = opt.dataset
-elif opt.norm.lower() == 'none':
-    opt.norm = None
+    opt = parser.parse_args()
 
-if len(opt.basedir) > 0:
-    opt.root = opt.root.replace('basedir', opt.basedir)
-    opt.weights = opt.weights.replace('basedir', opt.basedir)
-    opt.out = opt.out.replace('basedir', opt.basedir)
+    if opt.norm == '':
+        opt.norm = opt.dataset
+    elif opt.norm.lower() == 'none':
+        opt.norm = None
 
-if opt.out[:4] == 'root':
-    opt.out = opt.out.replace('root', opt.root)
+    if len(opt.basedir) > 0:
+        opt.root = opt.root.replace('basedir', opt.basedir)
+        opt.weights = opt.weights.replace('basedir', opt.basedir)
+        opt.out = opt.out.replace('basedir', opt.basedir)
+
+    if opt.out[:4] == 'root':
+        opt.out = opt.out.replace('root', opt.root)
 
 
-# convenience function
-if len(opt.weights) > 0 and not os.path.isfile(opt.weights):
-    # folder provided, trying to infer model options
+    # convenience function
+    if len(opt.weights) > 0 and not os.path.isfile(opt.weights):
+        # folder provided, trying to infer model options
 
-    logfile = opt.weights + '/log.txt'
-    opt.weights += '/final.pth'
-    if not os.path.isfile(opt.weights):
-        opt.weights = opt.weights.replace('final.pth', 'prelim.pth')
+        logfile = opt.weights + '/log.txt'
+        opt.weights += '/final.pth'
+        if not os.path.isfile(opt.weights):
+            opt.weights = opt.weights.replace('final.pth', 'prelim.pth')
 
-    if os.path.isfile(logfile):
-        fid = open(logfile, 'r')
-        optstr = fid.read()
-        optlist = optstr.split(', ')
+        if os.path.isfile(logfile):
+            fid = open(logfile, 'r')
+            optstr = fid.read()
+            optlist = optstr.split(', ')
 
-        def getopt(optname, typestr):
-            opt_e = [e.split('=')[-1].strip("\'")
-                     for e in optlist if (optname.split('.')[-1] + '=') in e]
-            return eval(optname) if len(opt_e) == 0 else typestr(opt_e[0])
+            def getopt(optname, typestr):
+                opt_e = [e.split('=')[-1].strip("\'")
+                        for e in optlist if (optname.split('.')[-1] + '=') in e]
+                return eval(optname) if len(opt_e) == 0 else typestr(opt_e[0])
 
-        opt.model = getopt('opt.model', str)
-        opt.task = getopt('opt.task', str)
-        opt.nch_in = getopt('opt.nch_in', int)
-        opt.nch_out = getopt('opt.nch_out', int)
-        opt.n_resgroups = getopt('opt.n_resgroups', int)
-        opt.n_resblocks = getopt('opt.n_resblocks', int)
-        opt.n_feats = getopt('opt.n_feats', int)
+            opt.model = getopt('opt.model', str)
+            opt.task = getopt('opt.task', str)
+            opt.nch_in = getopt('opt.nch_in', int)
+            opt.nch_out = getopt('opt.nch_out', int)
+            opt.n_resgroups = getopt('opt.n_resgroups', int)
+            opt.n_resblocks = getopt('opt.n_resblocks', int)
+            opt.n_feats = getopt('opt.n_feats', int)
+
+    return opt
 
 
 # data utils
@@ -73,11 +77,11 @@ def submitCmd():
 
     machine = socket.gethostname()
     newcmd = 'python ' + ' '.join(sys.argv[:])
-    print(newcmd)
+    # print(newcmd)
 
     requests.post('https://commandlog.imageheal.com/api/addNewEntryFromPython',data={'machine':machine,'newcmd':newcmd}, auth=('cc','k74mnptd'))
 
-def cloudpush():
+def cloudpush(opt):
     basename = os.path.basename(opt.out)
     machine = socket.gethostname()
     dt_string = datetime.now().strftime("%Y%m%d_%H%M")
@@ -106,7 +110,7 @@ def remove_dataparallel_wrapper(state_dict):
     return new_state_dict
 
 
-def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
+def ESRGANtrain(opt, dataloader, validloader, generator):
 
     start_epoch = 0
 
@@ -139,7 +143,7 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
 
     opt.t0 = time.perf_counter()
 
-    for epoch in range(start_epoch, nepoch):
+    for epoch in range(start_epoch, opt.nepoch):
         mean_loss_D = 0
         mean_loss_G = 0
         mean_loss_GAN = 0
@@ -307,7 +311,7 @@ def ESRGANtrain(dataloader, validloader, generator, nepoch=10):
 #feat = BarcodePolyFeature(dim=0, p=1, q=1)
 
 
-def train(dataloader, validloader, net, nepoch=10):
+def train(opt, dataloader, validloader, net):
 
     start_epoch = 0
     if opt.task == 'segment' or opt.task == 'classification':
@@ -354,12 +358,12 @@ def train(dataloader, validloader, net, nepoch=10):
 
     opt.t0 = time.perf_counter()
 
-    for epoch in range(start_epoch, nepoch):
+    for epoch in range(start_epoch, opt.nepoch):
         count = 0
         mean_loss = 0
 
-        for param_group in optimizer.param_groups:
-            print('\nLearning rate', param_group['lr'])
+        # for param_group in optimizer.param_groups:
+        #     print('\nLearning rate', param_group['lr'])
 
         for i, bat in enumerate(dataloader):
             lr, hr = bat[0], bat[1]
@@ -428,7 +432,7 @@ def train(dataloader, validloader, net, nepoch=10):
 
             ######### Status and display #########
             mean_loss += loss.data.item()
-            print('\r[%d/%d][%d/%d] Loss: %0.6f' % (epoch+1, nepoch,
+            print('\r[%d/%d][%d/%d] Loss: %0.6f' % (epoch+1, opt.nepoch,
                                                     i+1, len(dataloader), loss.data.item()), end='')
 
             count += 1
@@ -451,10 +455,13 @@ def train(dataloader, validloader, net, nepoch=10):
                 break
 
         # ---------------- Printing -----------------
-        print('\nEpoch %d done, %0.6f' %
-              (epoch, (mean_loss / len(dataloader))))
-        print('\nEpoch %d done, %0.6f' %
-              (epoch, (mean_loss / len(dataloader))), file=opt.fid)
+        mean_loss = mean_loss / len(dataloader)
+        t1 = time.perf_counter() - opt.t0
+        eta = (opt.nepoch - (epoch + 1)) * t1 / (epoch + 1)
+        ostr = '\nEpoch [%d/%d] done, mean loss: %0.6f, time spent: %0.1fs, ETA: %0.1fs' % (
+            epoch+1, opt.nepoch, mean_loss, t1, eta)
+        print(ostr)
+        print(ostr, file=opt.fid)
         opt.fid.flush()
         if opt.log:
             opt.writer.add_scalar(
@@ -475,7 +482,7 @@ def train(dataloader, validloader, net, nepoch=10):
                 checkpoint['scheduler'] = scheduler.state_dict()
             torch.save(checkpoint, '%s/prelim%d.pth' % (opt.out, epoch+1))
 
-    checkpoint = {'epoch': nepoch,
+    checkpoint = {'epoch': opt.nepoch,
                   'state_dict': net.state_dict(),
                   'optimizer': optimizer.state_dict()}
     if len(opt.scheduler) > 0:
@@ -484,8 +491,8 @@ def train(dataloader, validloader, net, nepoch=10):
     
 
 
-if __name__ == '__main__':
 
+def main(opt):
     try:
         submitCmd()
     except:
@@ -494,8 +501,14 @@ if __name__ == '__main__':
     os.makedirs(opt.out,exist_ok=True)
 
     opt.fid = open(opt.out + '/log.txt', 'w')
-    print(opt)
+
+    ostr = 'ARGS: ' + ' '.join(sys.argv[:])
+    print(opt, '\n') 
     print(opt, '\n', file=opt.fid)
+    print('\n%s\n' % ostr)
+    print('\n%s\n' % ostr, file=opt.fid)
+
+
     print('getting dataloader', opt.root)
     dataloader, validloader = GetDataloaders(opt)
     
@@ -513,7 +526,7 @@ if __name__ == '__main__':
     t0 = time.perf_counter()
     if opt.model.lower() == 'esrgan':
         net = GetModel(opt)
-        ESRGANtrain(dataloader, validloader, net, nepoch=opt.nepoch)
+        ESRGANtrain(opt, dataloader, validloader, net)
     elif opt.model.lower() == 'wgan_binary':
         import WGAN_binary
         WGAN_binary.train(opt, dataloader, validloader)
@@ -524,7 +537,7 @@ if __name__ == '__main__':
         net = GetModel(opt)
     
     if not opt.test:
-            train(dataloader, validloader, net, nepoch=opt.nepoch)
+        train(opt, dataloader, validloader, net)
         # torch.save(net.state_dict(), opt.out + '/final.pth')
     else:
         if len(opt.weights) > 0:  # load previous weights?
@@ -534,12 +547,18 @@ if __name__ == '__main__':
                 checkpoint['state_dict'] = remove_dataparallel_wrapper(
                     checkpoint['state_dict'])
             net.load_state_dict(checkpoint['state_dict'])
-            print('time: ', time.perf_counter()-t0)
+            print('time: %0.1f' % (time.perf_counter()-t0))
         testAndMakeCombinedPlots(net, validloader, opt)
-    print('time: ', time.perf_counter()-t0)
+    print('time: %0.1f' % (time.perf_counter()-t0))
     if opt.cloud: 
         print('uploading files')
         opt.fid.close()
-        opt.train_stats.close()
-        opt.test_stats.close()
-        cloudpush()
+        if opt.log:
+            opt.train_stats.close()
+            opt.test_stats.close()
+        cloudpush(opt)    
+
+
+if __name__ == '__main__':
+    opt = options()
+    main(opt)

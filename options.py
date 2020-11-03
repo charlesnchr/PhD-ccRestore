@@ -53,5 +53,6 @@ parser.add_argument('--testinterval', type=int, default=1, help='number of epoch
 parser.add_argument('--test', action='store_true')
 parser.add_argument('--cpu', action='store_true') # not supported for training
 parser.add_argument('--batchSize_test', type=int, default=1, help='input batch size for test loader')
-parser.add_argument('--plotinterval', type=int, default=1, help='number of test samples between plotting')
+parser.add_argument('--plotinterval', type=int, default=1, help='number of epochs between plotting')
+parser.add_argument('--nplot', type=int, default=4, help='number of plots in a test')
 
