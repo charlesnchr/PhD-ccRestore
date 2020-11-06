@@ -19,8 +19,9 @@ from options import parser
 import traceback
 import socket
 from datetime import datetime
-
+import shutil
 import sys
+import glob
 
 
 def options():
@@ -499,6 +500,7 @@ def main(opt):
         print(traceback.format_exc())
 
     os.makedirs(opt.out,exist_ok=True)
+    shutil.copy2('options.py',opt.out)
 
     opt.fid = open(opt.out + '/log.txt', 'w')
 
@@ -549,7 +551,9 @@ def main(opt):
             net.load_state_dict(checkpoint['state_dict'])
             print('time: %0.1f' % (time.perf_counter()-t0))
         testAndMakeCombinedPlots(net, validloader, opt)
+    
     print('time: %0.1f' % (time.perf_counter()-t0))
+    
     if opt.cloud: 
         print('uploading files')
         opt.fid.close()
@@ -557,6 +561,22 @@ def main(opt):
             opt.train_stats.close()
             opt.test_stats.close()
         cloudpush(opt)    
+
+    # optional clean up
+    if opt.disposableTrainingData and not opt.test:
+        print('deleting training data')
+        # preserve a few samples
+        os.makedirs('%s/training_data_subset' % opt.out, exist_ok=True)
+        
+        samplecount = 0 
+        for file in glob.glob('%s/*' % opt.root):
+            if os.path.isfile(file):
+                basename = os.path.basename(file)
+                shutil.copy2(file, '%s/training_data_subset/%s' % (opt.out,basename))
+                samplecount += 1
+                if samplecount == 10:
+                    break
+        shutil.rmtree(opt.out)
 
 
 if __name__ == '__main__':

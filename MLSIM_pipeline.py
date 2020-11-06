@@ -14,7 +14,7 @@ import shutil
 
 # ------------ Options --------------
 from options import parser
-parser.add_argument('--sourceimages_path', type=str, default='/auto/homes/cnc39/phd/datasets/DIV2K/DIV2K_train_HR')
+parser.add_argument('--sourceimages_path', type=str, default='/local/scratch/cnc39/phd/datasets/DIV2K/DIV2K_train_HR')
 parser.add_argument('--nrep', type=int, default=1, help='instances of same source image')
 parser.add_argument('--datagen_workers', type=int, default=8, help='')
 parser.add_argument('--ext', nargs='+', default=['png'], choices=['png','jpg','tif'])
@@ -91,7 +91,6 @@ if __name__ == '__main__':
     os.makedirs(opt.root, exist_ok=True)
     os.makedirs(opt.out, exist_ok=True)
     
-    shutil.copy2('options.py',opt.out)
     shutil.copy2('MLSIM_datagen/SIMulator.py',opt.out)
     shutil.copy2('MLSIM_datagen/SIMulator_functions.py',opt.out)
 

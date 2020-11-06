@@ -29,6 +29,8 @@ parser.add_argument('--server', dest='root', action='store_const', const='/auto/
 parser.add_argument('--local', dest='root', action='store_const', const='C:/phd-data/datasets/', help='whether to use local root preset: C:/phd-data/datasets/')
 parser.add_argument('--out', type=str, default='results', help='folder to output model training results')
 parser.add_argument('--cloud', action='store_true', help='folder to output model training results')
+parser.add_argument('--disposableTrainingData', action='store_true', help='whether to delete training data after training')
+
 
 # computation 
 parser.add_argument('--workers', type=int, default=6, help='number of data loading workers')
