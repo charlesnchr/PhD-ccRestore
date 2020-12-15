@@ -12,6 +12,7 @@ from models import GetModel, ESRGAN_Discriminator, ESRGAN_FeatureExtractor
 from datahandler import GetDataloaders
 
 from plotting import testAndMakeCombinedPlots
+import testfunctions
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -86,11 +87,14 @@ def cloudpush(opt):
     basename = os.path.basename(opt.out)
     machine = socket.gethostname()
     dt_string = datetime.now().strftime("%Y%m%d_%H%M")
-
     outname = 'gdrive:/%s/%s-%s-%s' % ('01runs',dt_string,machine,basename)
     print('starting subprocess for sync')
-    subprocess.check_output(["rclone","sync",opt.out,outname])
 
+    if 'cl.cam.ac.uk' in machine:
+        subprocess.check_output(["rclone","--config",
+            "/local/scratch/cnc39/tmp/rclone.conf","sync",opt.out,outname])
+    else:
+        subprocess.check_output(["rclone","sync",opt.out,outname])
 
 
 
@@ -280,6 +284,9 @@ def ESRGANtrain(opt, dataloader, validloader, generator):
         # ---------------- TEST -----------------
         if (epoch + 1) % opt.testinterval == 0:
             testAndMakeCombinedPlots(net, validloader, opt, epoch)
+            
+            if opt.testFunction is not None:
+                testfunctions.parse(net,opt, opt.testFunction, epoch)
             # if opt.scheduler:
             # scheduler.step(mean_loss / len(dataloader))
 
@@ -390,14 +397,25 @@ def train(opt, dataloader, validloader, net):
                 loss = loss_function(
                     pred.squeeze(), label.squeeze().cuda())
             else:
-                sr = net(lr.cuda())
+                if opt.cpu:
+                    sr = net(lr)
+                else:
+                    sr = net(lr.cuda())
                 if opt.task == 'segment':
                     if opt.nch_out > 2:
                         hr_classes = torch.round((opt.nch_out-1)*hr).long()
-                        loss = loss_function(
-                            sr.squeeze(), hr_classes.squeeze().cuda())
+                        if opt.cpu:
+                            loss = loss_function(
+                                sr.squeeze(), hr_classes.squeeze())
+                        else:
+                            loss = loss_function(
+                                sr.squeeze(), hr_classes.squeeze().cuda())
                     else:
-                        loss = loss_function(
+                        if opt.cpu:
+                            loss = loss_function(
+                                sr.squeeze(), hr.long().squeeze())
+                        else:
+                            loss = loss_function(
                             sr.squeeze(), hr.long().squeeze().cuda())
                 elif opt.task == 'persistenthomology':
                     # loss = loss_function(sr, hr.cuda())
@@ -471,6 +489,9 @@ def train(opt, dataloader, validloader, net):
         # ---------------- TEST -----------------
         if (epoch + 1) % opt.testinterval == 0:
             testAndMakeCombinedPlots(net, validloader, opt, epoch)
+            
+            if opt.testFunction is not None:
+                testfunctions.parse(net,opt, opt.testFunction, epoch)
             # if opt.scheduler:
             # scheduler.step(mean_loss / len(dataloader))
 
@@ -499,6 +520,8 @@ def main(opt):
     except:
         print(traceback.format_exc())
 
+    opt.device = torch.device('cuda' if torch.cuda.is_available() and not opt.cpu else 'cpu')
+    
     os.makedirs(opt.out,exist_ok=True)
     shutil.copy2('options.py',opt.out)
 

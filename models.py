@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import torchvision
 import torchvision.models as models
 import functools # used by RRDBNet
+import math
 
 
 def GetModel(opt):

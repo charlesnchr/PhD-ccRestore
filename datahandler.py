@@ -43,48 +43,53 @@ toPIL = transforms.ToPILImage()
 
 def GetDataloaders(opt):
 
+    # if no separate validation set has been provided
+    if opt.rootValidation is None:
+        opt.rootValidation = opt.root
+
+    # dataloaders
     if opt.dataset.lower() == 'div2k':
         dataloader = load_DIV2K_dataset(opt.root,'train',opt)
-        validloader = load_DIV2K_dataset(opt.root,'valid',opt)
+        validloader = load_DIV2K_dataset(opt.rootValidation,'valid',opt)
     elif opt.dataset.lower() == 'div2k_raw':
         dataloader = load_DIV2K_dataset(opt.root + '/DIV2K','train',opt)
-        validloader = load_DIV2K_dataset(opt.root + '/DIV2K','valid',opt)
+        validloader = load_DIV2K_dataset(opt.rootValidation + '/DIV2K','valid',opt)
     elif opt.dataset.lower() == 'pcam': 
         dataloader = load_HDF5_dataset(opt.root + '/camelyonpatch_level_2_split_valid_x.h5','train',opt)
-        validloader = load_HDF5_dataset(opt.root + '/camelyonpatch_level_2_split_valid_x.h5','valid',opt)
+        validloader = load_HDF5_dataset(opt.rootValidation + '/camelyonpatch_level_2_split_valid_x.h5','valid',opt)
     elif opt.dataset.lower() == 'imagedataset': 
         dataloader = load_image_dataset(opt.root,'train',opt)
-        validloader = load_image_dataset(opt.root,'valid',opt)
+        validloader = load_image_dataset(opt.rootValidation,'valid',opt)
     elif opt.dataset.lower() == 'imageclassdataset': 
         dataloader = load_imageclass_dataset(opt.root,'train',opt)
-        validloader = load_imageclass_dataset(opt.root,'valid',opt)
+        validloader = load_imageclass_dataset(opt.rootValidation,'valid',opt)
     elif opt.dataset.lower() == 'doubleimagedataset': 
         dataloader = load_doubleimage_dataset(opt.root,'train',opt)
-        validloader = load_doubleimage_dataset(opt.root,'valid',opt)
+        validloader = load_doubleimage_dataset(opt.rootValidation,'valid',opt)
     elif opt.dataset.lower() == 'pickledataset': 
         dataloader = load_GenericPickle_dataset(opt.root,'train',opt)
-        validloader = load_GenericPickle_dataset(opt.root,'valid',opt)
+        validloader = load_GenericPickle_dataset(opt.rootValidation,'valid',opt)
     elif opt.dataset.lower() == 'sim': 
         dataloader = load_SIM_dataset(opt.root,'train',opt)
-        validloader = load_SIM_dataset(opt.root,'valid',opt)
+        validloader = load_SIM_dataset(opt.rootValidation,'valid',opt)
     elif opt.dataset.lower() == 'realsim': 
         dataloader = load_real_SIM_dataset(opt.root,'train',opt)
-        validloader = load_real_SIM_dataset(opt.root,'valid',opt)        
+        validloader = load_real_SIM_dataset(opt.rootValidation,'valid',opt)        
     elif opt.dataset.lower() == 'fouriersim': 
         dataloader = load_fourier_SIM_dataset(opt.root,'train',opt)
-        validloader = load_fourier_SIM_dataset(opt.root,'valid',opt)                
+        validloader = load_fourier_SIM_dataset(opt.rootValidation,'valid',opt)                
     elif opt.dataset.lower() == 'fourierfreqsim': 
         dataloader = load_freq_fourier_SIM_dataset(opt.root,'train',opt)
-        validloader = load_freq_fourier_SIM_dataset(opt.root,'valid',opt)
+        validloader = load_freq_fourier_SIM_dataset(opt.rootValidation,'valid',opt)
     elif opt.dataset.lower() == 'ntiredenoising': 
         dataloader = load_NTIREDenoising_dataset(opt.root,'train',opt)
-        validloader = load_NTIREDenoising_dataset(opt.root,'valid',opt)                
+        validloader = load_NTIREDenoising_dataset(opt.rootValidation,'valid',opt)                
     elif opt.dataset.lower() == 'ntireestimatenl': 
         dataloader = load_EstimateNL_dataset(opt.root,'train',opt)
-        validloader = load_EstimateNL_dataset(opt.root,'valid',opt)                
+        validloader = load_EstimateNL_dataset(opt.rootValidation,'valid',opt)                
     elif opt.dataset.lower() == 'er':
         dataloader = load_ER_dataset(opt.root,category='train',batchSize=opt.batchSize,num_workers=opt.workers)
-        validloader = load_ER_dataset(opt.root,category='valid',shuffle=False,batchSize=opt.batchSize,num_workers=0)        
+        validloader = load_ER_dataset(opt.rootValidation,category='valid',shuffle=False,batchSize=opt.batchSize,num_workers=0)        
     else:
         print('unknown dataset')
         return None,None
@@ -583,7 +588,7 @@ class GenericPickleDataset(Dataset):
 
         if self.scale > 1:
             # img = pickle.load(open(self.images[index],'rb'))
-            img = np.load(self.images[index])
+            img = np.load(self.images[index],allow_pickle=True)
             hr = toTensor(img)
 
             # rotate and flip?
@@ -594,15 +599,15 @@ class GenericPickleDataset(Dataset):
 
             lr = self.trans(hr)
             return lr, hr
-        else:
+        elif self.nch == 1:
             # lq, hq = pickle.load(open(self.images[index], 'rb'))
-            lq, hq = np.load(self.images[index])
+            lq, hq = np.load(self.images[index],allow_pickle=True)
             lq, hq = toTensor(lq).float(), toTensor(hq).float()
 
             # multi-image input?
-            if lq.shape[0] > self.nch:
-                lq = lq[lq.shape[0] // 2].unsqueeze(0)
-                hq = hq[hq.shape[0] // 2].unsqueeze(0)
+            # if lq.shape[0] > self.nch:
+            #     lq = lq[lq.shape[0] // 2].unsqueeze(0)
+            #     hq = hq[hq.shape[0] // 2].unsqueeze(0)
             
             # rotate and flip?
             if self.category == 'train':
@@ -617,7 +622,28 @@ class GenericPickleDataset(Dataset):
                     hq = torch.flip(hq, [2])
 
             
-        return lq, hq # hq, lq, lq
+            return lq, hq # hq, lq, lq
+        elif self.nch == 3:
+            img_in_pre,img_in,img_in_pos, img_gt = np.load(self.images[index],allow_pickle=True)
+            img_in_pre,img_in,img_in_pos, hq = toTensor(img_in_pre).float(),toTensor(img_in).float(),toTensor(img_in_pos).float(), toTensor(img_gt).float()
+            lq = torch.cat((img_in_pre,img_in,img_in_pos), 0)
+            
+            # rotate and flip?
+            if self.category == 'train':
+                if random.random() > 0.5:
+                    lq = lq.permute(0, 2, 1)
+                    hq = hq.permute(0, 2, 1)
+                if random.random() > 0.5:
+                    lq = torch.flip(lq, [1])
+                    hq = torch.flip(hq, [1])
+                if random.random() > 0.5:
+                    lq = torch.flip(lq, [2])
+                    hq = torch.flip(hq, [2])
+                                
+            return lq, hq
+
+        else:
+            print('datahandler error')
 
     def __len__(self):
         return self.len       

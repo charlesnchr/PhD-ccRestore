@@ -108,6 +108,10 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                     sr = sr.argmax(dim=0, keepdim=True)
                     # print(sr.shape)
 
+                    # multi-image input?
+                    if lr.shape[0] > hr.shape[0]:
+                        lr = lr[lr.shape[0] // 2].unsqueeze(0) # take center frame
+
                     lr, sr, hr = toPIL(lr), toPIL(sr.float() / (opt.nch_out - 1)), toPIL(hr.float())
 
                     if makeplotBool: plt.figure(figsize=(10,5))
