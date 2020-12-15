@@ -866,7 +866,15 @@ class Fourier_SIM_dataset(Dataset):
         
         stack = io.imread(self.images[index])
 
-        inputimg = stack[:self.nch_in]
+        if self.nch_in == 6:
+            inputimg = stack[[0,1,3,4,6,7]]
+        elif self.nch_in == 3:
+            inputimg = stack[[0,4,8]]
+        elif self.nch_in == 1:
+            inputimg = stack[[8]] # used for sequential SIM - first tests from 20201215 have GT as 9th frame
+        else:
+            inputimg = stack[:self.nch_in]
+
 
         # adding noise
         # if 'noiseRetraining' in self.out:
@@ -875,10 +883,6 @@ class Fourier_SIM_dataset(Dataset):
         #     inputimg = inputimg + noisefrac[idx]*np.std(I)*np.random.randn(*inputimg.shape)
         #     inputimg = np.clip(inputimg,0,255).astype('uint16')
 
-        if self.nch_in == 6:
-            inputimg = inputimg[[0,1,3,4,6,7]]
-        elif self.nch_in == 3:
-            inputimg = inputimg[[0,4,8]]
 
         if len(stack) > 9:
             # otf = stack[9]
