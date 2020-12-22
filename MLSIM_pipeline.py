@@ -31,7 +31,7 @@ parser.add_argument('--phaseErrorFac', type=float, default=0.33) # pi/3 quite la
 parser.add_argument('--alphaErrorFac', type=float, default=0.33) # pi/3 quite large but still feasible
 parser.add_argument('--angleError', type=float, default=10) # pi/3 quite large but still feasible
 parser.add_argument('--usePoissonNoise', action='store_true')
-parser.add_argument('--DontShuffleOrientations', action='store_true')
+parser.add_argument('--dontShuffleOrientations', action='store_true')
 parser.add_argument('--dataonly', action='store_true')
 
 opt = parser.parse_args()
@@ -55,7 +55,7 @@ def GetParams(): # uniform randomisation
     # orientation error
     SIMopt.angleError = opt.angleError*pi/180*(np.random.rand()-0.5)
     # shuffle the order of orientations
-    SIMopt.shuffleOrientations = not opt.DontShuffleOrientations
+    SIMopt.shuffleOrientations = not opt.dontShuffleOrientations
     # random phase shift errors
     SIMopt.phaseError = opt.phaseErrorFac*pi*(0.5-np.random.rand(SIMopt.Nangles, SIMopt.Nshifts))
     # mean illumination intensity
