@@ -266,3 +266,23 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
         opt.test_stats.flush()
 
 
+def generate_convergence_plots(opt,filename):
+    fid = open(filename,'r')
+    psnrlist = []
+    ssimlist = []
+
+    for line in fid:
+        if 'sr: ' in line:
+            psnrlist.append(float(line.split('sr: ')[1].split(' dB')[0]))
+            ssimlist.append(float(line.split('sr: ')[1].split(' dB / ')[1]))
+    
+    plt.figure(figsize=(12,5))
+    plt.subplot(121)
+    plt.plot(psnrlist,'.-')
+    plt.title('PSNR')
+
+    plt.subplot(122)
+    plt.plot(ssimlist,'.-')
+    plt.title('SSIM')
+
+    plt.savefig('%s/convergencePlot.png' % opt.out, dpi=300)

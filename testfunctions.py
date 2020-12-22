@@ -17,30 +17,95 @@ import torchvision.transforms as transforms
 toPIL = transforms.ToPILImage()
 plt.switch_backend('agg')
 
-def changeColour(I): # change colours (used to match WEKA output, request by Meng)
-    Inew = np.zeros(I.shape + (3,)).astype('uint8')
-    for rowidx in range(I.shape[0]):
-        for colidx in range(I.shape[1]):
-            if I[rowidx][colidx] == 0:
-                Inew[rowidx][colidx] = [198,118,255]
-            elif I[rowidx][colidx] == 127:
-                Inew[rowidx][colidx] = [79,255,130]
-            elif I[rowidx][colidx] == 255:
-                Inew[rowidx][colidx] = [255,0,0]
-    return Inew
-
 def parse(model, opt, function, epoch):
 
-    argin = opt.testFunctionArgs.split(',')
     args = {}
-    for i in range(0,len(argin),2):
-        val = argin[i+1]
-        args[argin[i]] = val
+
+    if opt.testFunctionArgs is not None:
+        argin = opt.testFunctionArgs.split(',')
+        for i in range(0,len(argin),2):
+            val = argin[i+1]
+            args[argin[i]] = val
 
     print('Running test script', function + '(model,opt)', 'with args',args)
     eval('%s(model,opt,args, epoch)' % function)
 
+
+def experimentalSIMRec(model, opt, args, epoch):
+    
+    def prepimg(stack,self):
+
+        inputimg = stack[:9]
+
+        if self.nch_in == 6:
+            inputimg = inputimg[[0,1,3,4,6,7]]
+        elif self.nch_in == 3:
+            inputimg = inputimg[[0,4,8]]
+
+        if inputimg.shape[1] > 512 or inputimg.shape[2] > 512:
+            print('Over 512x512! Cropping')
+            inputimg = inputimg[:,:512,:512]
+
+        inputimg = inputimg.astype('float') / np.max(inputimg) # used to be /255
+        widefield = np.mean(inputimg,0) 
+
+        if self.norm == 'adapthist':
+            for i in range(len(inputimg)):
+                inputimg[i] = exposure.equalize_adapthist(inputimg[i],clip_limit=0.001)
+            widefield = exposure.equalize_adapthist(widefield,clip_limit=0.001)
+            inputimg = torch.from_numpy(inputimg).float()
+            widefield = torch.from_numpy(widefield).float()
+        else:
+            # normalise 
+            inputimg = torch.from_numpy(inputimg).float()
+            widefield = torch.from_numpy(widefield).float()
+            widefield = (widefield - torch.min(widefield)) / (torch.max(widefield) - torch.min(widefield))
+
+            if self.norm == 'minmax':
+                for i in range(len(inputimg)):
+                    inputimg[i] = (inputimg[i] - torch.min(inputimg[i])) / (torch.max(inputimg[i]) - torch.min(inputimg[i]))
+
+        return inputimg,widefield
+
+
+    testdir = 'experimentalTests'
+    os.makedirs('%s/%s' % (opt.out,testdir),exist_ok=True)
+
+    for iidx,imgfile in enumerate(glob.glob('%s/*.tif' % opt.rootTesting)):
+        
+        stack = io.imread(imgfile)
+        
+        inputimg, wf = prepimg(stack,opt)
+        wf = (255*wf.numpy()).astype('uint8')
+
+        with torch.no_grad():
+            sr = model(inputimg.unsqueeze(0).to(opt.device))
+            sr = sr.cpu()
+            sr = torch.clamp(sr,min=0,max=1) 
+
+        sr = sr.squeeze().numpy()
+        sr = (255*sr).astype('uint8')
+        if opt.norm == 'adapthist':
+            sr = exposure.equalize_adapthist(sr,clip_limit=0.01)
+        combined = np.concatenate((wf,sr),axis=1)
+        skimage.io.imsave('%s/%s/test_epoch%d_idx%d.jpg' % (opt.out,testdir,epoch,iidx), combined) 
+
+
+
 def experimentalER(model, opt, args, epoch, weka_colours=True):
+
+    def changeColour(I): # change colours (used to match WEKA output, request by Meng)
+        Inew = np.zeros(I.shape + (3,)).astype('uint8')
+        for rowidx in range(I.shape[0]):
+            for colidx in range(I.shape[1]):
+                if I[rowidx][colidx] == 0:
+                    Inew[rowidx][colidx] = [198,118,255]
+                elif I[rowidx][colidx] == 127:
+                    Inew[rowidx][colidx] = [79,255,130]
+                elif I[rowidx][colidx] == 255:
+                    Inew[rowidx][colidx] = [255,0,0]
+        return Inew
+
 
     imSize = int(args['imageSize'])
     folders = sorted(glob.glob('%s/*' % opt.rootTesting))

@@ -102,16 +102,23 @@ def SIMimages(opt, DIo, PSFo, OTFo):
             else:
                 ST = np.real(ifft2(fft2(sup_sig)*fftshift(OTFo)))
 
-            # Gaussian noise generation
-            aNoise = opt.NoiseLevel/100  # noise
-            # SNR = 1/aNoise
-            # SNRdb = 20*log10(1/aNoise)
+            # Noise generation
+            if opt.usePoissonNoise:
+                # Poisson
+                vals = 2 ** np.ceil(np.log2(opt.NoiseLevel)) # NoiseLevel could be 200 for Poisson: degradation seems similar to Noiselevel 20 for Gaussian
+                STnoisy = np.random.poisson(ST * vals) / float(vals)
+            else:
+                # Gaussian
+                aNoise = opt.NoiseLevel/100  # noise
+                # SNR = 1/aNoise
+                # SNRdb = 20*log10(1/aNoise)
 
-            nST = np.random.normal(0, aNoise*np.std(ST, ddof=1), (w, w))
-            NoiseFrac = 1  # may be set to 0 to avoid noise addition
-            # noise added raw SIM images
-            STnoisy = ST + NoiseFrac*nST
-            frames.append(STnoisy)
+                nST = np.random.normal(0, aNoise*np.std(ST, ddof=1), (w, w))
+                NoiseFrac = 1  # may be set to 0 to avoid noise addition
+                # noise added raw SIM images
+                STnoisy = ST + NoiseFrac*nST
+
+            frames.append(STnoisy.clip(0,1))
 
     return frames
 

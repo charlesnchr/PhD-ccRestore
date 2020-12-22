@@ -11,7 +11,7 @@ import subprocess
 from models import GetModel, ESRGAN_Discriminator, ESRGAN_FeatureExtractor
 from datahandler import GetDataloaders
 
-from plotting import testAndMakeCombinedPlots
+from plotting import testAndMakeCombinedPlots, generate_convergence_plots
 import testfunctions
 
 from torch.utils.tensorboard import SummaryWriter
@@ -92,10 +92,9 @@ def cloudpush(opt):
 
     if 'cl.cam.ac.uk' in machine:
         subprocess.check_output(["rclone","--config",
-            "/local/scratch/cnc39/tmp/rclone.conf","sync",opt.out,outname])
+            "/local/scratch/cnc39/tmp/rclone.conf","move",opt.out,outname])
     else:
-        subprocess.check_output(["rclone","sync",opt.out,outname])
-
+        subprocess.check_output(["rclone","move",opt.out,outname])
 
 
 def remove_dataparallel_wrapper(state_dict):
@@ -547,7 +546,6 @@ def main(opt):
         print('iter,nsample,time,memory,meanloss', file=opt.train_stats)
         print('iter,time,memory,psnr,ssim', file=opt.test_stats)
 
-    import time
     t0 = time.perf_counter()
     if opt.model.lower() == 'esrgan':
         net = GetModel(opt)
@@ -575,11 +573,15 @@ def main(opt):
             print('time: %0.1f' % (time.perf_counter()-t0))
         testAndMakeCombinedPlots(net, validloader, opt)
     
+    opt.fid.close()
+    if not opt.test:
+        generate_convergence_plots(opt,opt.out + '/log.txt')
+    
+
     print('time: %0.1f' % (time.perf_counter()-t0))
     
     if opt.cloud: 
         print('uploading files')
-        opt.fid.close()
         if opt.log:
             opt.train_stats.close()
             opt.test_stats.close()

@@ -25,7 +25,14 @@ parser.add_argument('--Nangles', type=int, default=3)
 parser.add_argument('--k2', type=float, default=126.0)
 parser.add_argument('--k2_err', type=float, default=30.0)
 parser.add_argument('--usePSF', type=int, default=0)
-
+parser.add_argument('--NoiseLevel', type=float, default=8)
+parser.add_argument('--NoiseLevelRandFac', type=float, default=8)
+parser.add_argument('--phaseErrorFac', type=float, default=0.33) # pi/3 quite large but still feasible
+parser.add_argument('--alphaErrorFac', type=float, default=0.33) # pi/3 quite large but still feasible
+parser.add_argument('--angleError', type=float, default=10) # pi/3 quite large but still feasible
+parser.add_argument('--usePoissonNoise', action='store_true')
+parser.add_argument('--DontShuffleOrientations', action='store_true')
+parser.add_argument('--dataonly', action='store_true')
 
 opt = parser.parse_args()
     # return opt
@@ -44,21 +51,23 @@ def GetParams(): # uniform randomisation
     # modulation factor
     SIMopt.ModFac = 0.8 + 0.3*(np.random.rand()-0.5)
     # orientation offset
-    SIMopt.alpha = pi/3*(np.random.rand()-0.5)
+    SIMopt.alpha = opt.alphaErrorFac*pi*(np.random.rand()-0.5)
     # orientation error
-    SIMopt.angleError = 10*pi/180*(np.random.rand()-0.5)
+    SIMopt.angleError = opt.angleError*pi/180*(np.random.rand()-0.5)
     # shuffle the order of orientations
-    SIMopt.shuffleOrientations = True
+    SIMopt.shuffleOrientations = not opt.DontShuffleOrientations
     # random phase shift errors
-    SIMopt.phaseError = 1*pi*(0.5-np.random.rand(SIMopt.Nangles, SIMopt.Nshifts))
+    SIMopt.phaseError = opt.phaseErrorFac*pi*(0.5-np.random.rand(SIMopt.Nangles, SIMopt.Nshifts))
     # mean illumination intensity
     SIMopt.meanInten = np.ones(SIMopt.Nangles)*0.5
     # amplitude of illumination intensity above mean
     SIMopt.ampInten = np.ones(SIMopt.Nangles)*0.5*SIMopt.ModFac
     # illumination freq
     SIMopt.k2 = opt.k2 + opt.k2_err*(np.random.rand()-0.5)
-    # in percentage
-    SIMopt.NoiseLevel = 8 + 0*8*(np.random.rand()-0.5)
+    # noise type
+    SIMopt.usePoissonNoise = opt.usePoissonNoise
+    # noise level (percentage for Gaussian)
+    SIMopt.NoiseLevel = opt.NoiseLevel + opt.NoiseLevelRandFac*(np.random.rand()-0.5)
     # 1(to blur using PSF), 0(to blur using OTF)
     SIMopt.UsePSF = opt.usePSF
     # include OTF and GT in stack
@@ -91,7 +100,7 @@ if __name__ == '__main__':
     os.makedirs(opt.root, exist_ok=True)
     os.makedirs(opt.out, exist_ok=True)
     
-    shutil.copy2('MLSIM_datagen/SIMulator.py',opt.out)
+    shutil.copy2('MLSIM_pipeline.py',opt.out)
     shutil.copy2('MLSIM_datagen/SIMulator_functions.py',opt.out)
 
     files = []
@@ -116,10 +125,11 @@ if __name__ == '__main__':
 
     print('Done generating images,',opt.root)
 
-    print('Now starting training:\n')
 
     # cmd = '\npython run.py ' + ' '.join(sys.argv[:])
     # print(cmd,end='\n\n')
     # subprocess.Popen(cmd,shell=True)
-    run.main(opt)
+    if not opt.dataonly:
+        print('Now starting training:\n')
+        run.main(opt)
     

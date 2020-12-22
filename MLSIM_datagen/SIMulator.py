@@ -48,7 +48,9 @@ def GetParams(): # uniform randomisation
     opt.ampInten = np.ones(opt.Nangles)*0.5*opt.ModFac
     # illumination freq
     opt.k2 = 126 + 30*(np.random.rand()-0.5)
-    # in percentage
+    # noise type
+    opt.usePoissonNoise = False
+    # noise level (percentage for Gaussian)
     opt.NoiseLevel = 8 + 0*8*(np.random.rand()-0.5)
     # 1(to blur using PSF), 0(to blur using OTF)
     opt.UsePSF = 0
