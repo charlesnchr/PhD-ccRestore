@@ -145,7 +145,7 @@ def Generate_SIM_Image(opt, Io):
     if opt.OTF_and_GT:
         frames.append(OTFo)
         if opt.applyOTFtoGT:
-            frames.append(ApplyOTF(Io))
+            frames.append(ApplyOTF(opt,Io))
         else:
             frames.append(Io)
     stack = np.array(frames)
