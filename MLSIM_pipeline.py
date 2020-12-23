@@ -33,6 +33,7 @@ parser.add_argument('--angleError', type=float, default=10) # pi/3 quite large b
 parser.add_argument('--usePoissonNoise', action='store_true')
 parser.add_argument('--dontShuffleOrientations', action='store_true')
 parser.add_argument('--dataonly', action='store_true')
+parser.add_argument('--applyOTFtoGT', action='store_true')
 
 opt = parser.parse_args()
     # return opt
@@ -72,6 +73,9 @@ def GetParams(): # uniform randomisation
     SIMopt.UsePSF = opt.usePSF
     # include OTF and GT in stack
     SIMopt.OTF_and_GT = True
+    # use a blurred target (according to theoretical optimal construction)
+    SIMopt.applyOTFtoGT = opt.applyOTFtoGT
+
 
     return SIMopt
 
