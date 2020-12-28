@@ -24,6 +24,8 @@ parser.add_argument('--Nshifts', type=int, default=3)
 parser.add_argument('--Nangles', type=int, default=3)
 parser.add_argument('--k2', type=float, default=126.0)
 parser.add_argument('--k2_err', type=float, default=30.0)
+parser.add_argument('--PSFOTFscale', type=float, default=0.9)
+parser.add_argument('--ModFac', type=float, default=0.8)
 parser.add_argument('--usePSF', type=int, default=0)
 parser.add_argument('--NoiseLevel', type=float, default=8)
 parser.add_argument('--NoiseLevelRandFac', type=float, default=8)
@@ -36,7 +38,6 @@ parser.add_argument('--dataonly', action='store_true')
 parser.add_argument('--applyOTFtoGT', action='store_true')
 
 opt = parser.parse_args()
-    # return opt
 
 
 # ------------ Parameters-------------
@@ -48,9 +49,9 @@ def GetParams(): # uniform randomisation
     # number of orientations of stripes
     SIMopt.Nangles = opt.Nangles
     # used to adjust PSF/OTF width
-    SIMopt.scale = 0.9 + 0.1*(np.random.rand()-0.5)
+    SIMopt.scale = opt.PSFOTFscale + 0.1*(np.random.rand()-0.5)
     # modulation factor
-    SIMopt.ModFac = 0.8 + 0.3*(np.random.rand()-0.5)
+    SIMopt.ModFac = opt.ModFac + 0.3*(np.random.rand()-0.5)
     # orientation offset
     SIMopt.alpha = opt.alphaErrorFac*pi*(np.random.rand()-0.5)
     # orientation error

@@ -167,6 +167,9 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                         bc, hr, lr = sim_bat.data[j], hr_bat.data[j], wf_bat.data[j]
                         sr = torch.clamp(sr,min=0,max=1) 
 
+
+                    print('size out',sr.shape,hr.shape,lr.shape)
+
                     # fix to deal with 3D deconvolution
                     if opt.nch_out > 1:
                         lr = lr[lr.shape[0] // 2] # channels are not for colours but separate grayscale frames, take middle

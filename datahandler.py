@@ -861,10 +861,18 @@ class Fourier_SIM_dataset(Dataset):
         self.nch_out = opt.nch_out
         self.norm = opt.norm
         self.out = opt.out
+        self.imageSize = opt.imageSize
 
     def __getitem__(self, index):
         
         stack = io.imread(self.images[index])
+
+        if len(stack.shape) > 3:
+            stack = stack[0,:,:,:]
+
+        ## Resize if too large? Generally not a good idea
+        # if stack.shape[-1] > self.imageSize or stack.shape[-2] > self.imageSize:
+        #     stack = transform.resize(stack,(stack.shape[0],self.imageSize,self.imageSize), order=3)
 
         if self.nch_in == 6:
             inputimg = stack[[0,1,3,4,6,7]]
