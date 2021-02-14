@@ -1379,7 +1379,7 @@ class UNet(nn.Module):
         self.up4 = up(128, 64)
         
         if opt.task == 'segment':
-            self.outc = outconv(64, 2)
+            self.outc = outconv(64, opt.nch_out)
         else:
             self.outc = outconv(64, n_classes)
 

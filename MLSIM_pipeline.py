@@ -17,7 +17,7 @@ from options import parser
 parser.add_argument('--sourceimages_path', type=str, default='/local/scratch/cnc39/phd/datasets/DIV2K/DIV2K_train_HR')
 parser.add_argument('--nrep', type=int, default=1, help='instances of same source image')
 parser.add_argument('--datagen_workers', type=int, default=8, help='')
-parser.add_argument('--ext', nargs='+', default=['png'], choices=['png','jpg','tif'])
+parser.add_argument('--ext', nargs='+', default=['png'], choices=['png','jpg','tif','jpeg'])
 
 # SIM options to control from command line
 parser.add_argument('--Nshifts', type=int, default=3)
@@ -38,8 +38,7 @@ parser.add_argument('--dataonly', action='store_true')
 parser.add_argument('--applyOTFtoGT', action='store_true')
 
 opt = parser.parse_args()
-
-
+print(opt)
 # ------------ Parameters-------------
 def GetParams(): # uniform randomisation
     SIMopt = argparse.Namespace()
@@ -49,9 +48,9 @@ def GetParams(): # uniform randomisation
     # number of orientations of stripes
     SIMopt.Nangles = opt.Nangles
     # used to adjust PSF/OTF width
-    SIMopt.scale = opt.PSFOTFscale + 0.1*(np.random.rand()-0.5)
+    SIMopt.scale = opt.PSFOTFscale# + 0.1*(np.random.rand()-0.5)
     # modulation factor
-    SIMopt.ModFac = opt.ModFac + 0.3*(np.random.rand()-0.5)
+    SIMopt.ModFac = opt.ModFac# + 0.3*(np.random.rand()-0.5)
     # orientation offset
     SIMopt.alpha = opt.alphaErrorFac*pi*(np.random.rand()-0.5)
     # orientation error

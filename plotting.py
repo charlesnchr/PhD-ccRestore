@@ -47,6 +47,12 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
 
     count, mean_bc_psnr, mean_sr_psnr, mean_bc_ssim, mean_sr_ssim = 0,0,0,0,0
 
+    if opt.test:
+        bc_ssim_arr = []
+        sr_ssim_arr = []
+        bc_psnr_arr = []
+        sr_psnr_arr = []
+
     for i, bat in enumerate(loader):
         lr_bat, hr_bat = bat[0], bat[1]
         with torch.no_grad():
@@ -71,7 +77,6 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
 
         for j in range(len(lr_bat)): # loop over batch
             makeplotBool = (idx < 5 or (idx+1) % opt.plotinterval == 0 or idx == opt.nepoch - 1) and count < opt.nplot
-            if opt.test: makeplotBool = True
             if opt.logimage: makeplotBool = False
 
             lr, sr, hr = lr_bat.data[j], sr_bat.data[j], hr_bat.data[j]
@@ -168,8 +173,6 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                         sr = torch.clamp(sr,min=0,max=1) 
 
 
-                    print('size out',sr.shape,hr.shape,lr.shape)
-
                     # fix to deal with 3D deconvolution
                     if opt.nch_out > 1:
                         lr = lr[lr.shape[0] // 2] # channels are not for colours but separate grayscale frames, take middle
@@ -219,6 +222,12 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
             mean_bc_ssim += bc_ssim
             mean_sr_ssim += sr_ssim
 
+            if opt.test:
+                bc_psnr_arr.append(bc_psnr)
+                sr_psnr_arr.append(sr_psnr)
+                bc_ssim_arr.append(bc_ssim)
+                sr_ssim_arr.append(sr_ssim)
+
             if opt.log and not opt.test:
                 opt.writer.add_scalar('testimage_sr_psnr/%d' % count, sr_psnr,idx+1)
                 opt.writer.add_scalar('testimage_sr_ssim/%d' % count, sr_ssim,idx+1)
@@ -231,10 +240,12 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                 # plt.savefig('%s/combined_%d.png' % (opt.out,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
                 plt.savefig('%s/combined_epoch%d_%d.png' % (opt.out,idx+1,count), dpi=300, bbox_inches = 'tight', pad_inches = 0)
                 plt.close()
-                if opt.test:
-                    lr.save('%s/lr_epoch%d_%d.png' % (opt.out,idx+1,count))
-                    sr.save('%s/sr_epoch%d_%d.png' % (opt.out,idx+1,count))
-                    hr.save('%s/hr_epoch%d_%d.png' % (opt.out,idx+1,count))
+            if opt.test:
+                # lr.save('%s/lr_epoch%d_%d.png' % (opt.out,idx+1,count))
+                # sr.save('%s/sr_epoch%d_%d.png' % (opt.out,idx+1,count))
+                # hr.save('%s/hr_epoch%d_%d.png' % (opt.out,idx+1,count))
+                orig_filename = os.path.basename(bat[-1][0])
+                sr.save('%s/%s.png' % (opt.out,orig_filename))
 
 
             if opt.logimage:
@@ -249,9 +260,11 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                     opt.writer.add_image('hr/%d' % count, toTensor(hr),idx+1)
 
             count += 1
+            if opt.test: print('[%d/%d]' % (count,min(len(loader),opt.ntest)),end='\r')
             if count == opt.ntest: break
         if count == opt.ntest: break
     
+    if opt.test: print('\n')
     summarystr = ""
     if count == 0: 
         summarystr += 'Warning: all test samples skipped - count forced to 1 -- '
@@ -260,6 +273,10 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
     print(summarystr)
     print(summarystr,file=opt.fid)
     opt.fid.flush()
+
+    if opt.test:
+        np.save('%s/test_scores.npy' % opt.out,{'bc_ssim_arr':bc_ssim_arr,'sr_ssim_arr':sr_ssim_arr,'bc_psnr_arr':bc_psnr_arr,'sr_psnr_arr':sr_psnr_arr})
+
     if opt.log and not opt.test:
         opt.writer.add_scalar('test/psnr', mean_sr_psnr / count,idx+1)
         opt.writer.add_scalar('test/ssim', mean_sr_ssim / count,idx+1)

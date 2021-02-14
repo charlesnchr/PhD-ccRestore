@@ -601,9 +601,15 @@ class GenericPickleDataset(Dataset):
             return lr, hr
         elif self.nch == 1:
             # lq, hq = pickle.load(open(self.images[index], 'rb'))
-            lq, hq = np.load(self.images[index],allow_pickle=True)
-            lq, hq = toTensor(lq).float(), toTensor(hq).float()
+            inputTuple = np.load(self.images[index],allow_pickle=True)
 
+            if len(inputTuple) == 2:
+                lq, hq = inputTuple
+                lq, hq = toTensor(lq).float(), toTensor(hq).float()
+            elif len(inputTuple) == 4: ## assuming time sequence of 3 adjacent frames for input
+                lq, hq = inputTuple[1], inputTuple[3]
+                lq, hq = toTensor(lq).float(), toTensor(hq).float()
+            
             # multi-image input?
             # if lq.shape[0] > self.nch:
             #     lq = lq[lq.shape[0] // 2].unsqueeze(0)
@@ -842,9 +848,13 @@ class Fourier_SIM_dataset(Dataset):
     def __init__(self, root, category, opt):
 
         self.images = []
+
         for folder in root.split(','):
-            folderimgs = glob.glob(folder + '/*.tif')
-            self.images.extend(folderimgs)
+            if ".tif" in folder:
+                self.images.append(folder) # not a folder, but file (used for --test)
+            else:
+                folderimgs = glob.glob(folder + '/*.tif')
+                self.images.extend(folderimgs)
 
         random.seed(1234)
         random.shuffle(self.images)
@@ -979,13 +989,13 @@ class Fourier_SIM_dataset(Dataset):
         
 
         if self.task == 'simin_simout':
-            return inputimg,simimg,gt,widefield   # sim input, sim output
+            return inputimg,simimg,gt,widefield,self.images[index]   # sim input, sim output
         elif self.task == 'wfin_simout':
-            return widefield,simimg,gt,widefield   # wf input, sim output
+            return widefield,simimg,gt,widefield,self.images[index]   # wf input, sim output
         elif self.task == 'wfin_gtout':
-            return widefield,gt,simimg,widefield  # wf input, gt output
+            return widefield,gt,simimg,widefield,self.images[index]  # wf input, gt output
         else: # simin_gtout
-            return inputimg,gt,simimg,widefield  # sim input, gt output
+            return inputimg,gt,simimg,widefield,self.images[index]  # sim input, gt output
 
 
 

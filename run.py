@@ -564,7 +564,7 @@ def main(opt):
         # torch.save(net.state_dict(), opt.out + '/final.pth')
     else:
         if len(opt.weights) > 0:  # load previous weights?
-            checkpoint = torch.load(opt.weights)
+            checkpoint = torch.load(opt.weights,map_location=opt.device)
             print('loading checkpoint', opt.weights)
             if opt.undomulti:
                 checkpoint['state_dict'] = remove_dataparallel_wrapper(
