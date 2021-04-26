@@ -468,7 +468,7 @@ def load_DIV2K_dataset(root, category,opt):
 
 
 class HDF5Dataset(Dataset):
-    from .noise import noisy
+    from noise import noisy
 
     def __init__(self, root, category, opt): # highres images not currently scaled, optdefault
         import h5py 
