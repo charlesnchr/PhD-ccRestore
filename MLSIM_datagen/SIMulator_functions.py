@@ -90,8 +90,11 @@ def SIMimages(opt, DIo, PSFo, OTFo):
     for i_a in range(opt.Nangles):
         for i_s in range(opt.Nshifts):
             # illuminated signal
-            sig = opt.meanInten[i_a] + opt.ampInten[i_a] * cos(2*pi*(k2mat[i_a, 0]*(X-wo) +
-                          k2mat[i_a, 1]*(Y-wo))+ps[i_a, i_s])
+            if not opt.noStripes:
+                sig = opt.meanInten[i_a] + opt.ampInten[i_a] * cos(2*pi*(k2mat[i_a, 0]*(X-wo) +
+                            k2mat[i_a, 1]*(Y-wo))+ps[i_a, i_s])
+            else:
+                sig = 1 # simulating sidefield
 
             sup_sig = DIo*sig  # superposed signal
 

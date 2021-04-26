@@ -36,6 +36,7 @@ parser.add_argument('--usePoissonNoise', action='store_true')
 parser.add_argument('--dontShuffleOrientations', action='store_true')
 parser.add_argument('--dataonly', action='store_true')
 parser.add_argument('--applyOTFtoGT', action='store_true')
+parser.add_argument('--noStripes', action='store_true')
 
 opt = parser.parse_args()
 print(opt)

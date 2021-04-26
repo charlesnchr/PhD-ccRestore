@@ -468,7 +468,7 @@ def load_DIV2K_dataset(root, category,opt):
 
 
 class HDF5Dataset(Dataset):
-    from noise import noisy
+    from .noise import noisy
 
     def __init__(self, root, category, opt): # highres images not currently scaled, optdefault
         import h5py 
@@ -853,7 +853,7 @@ class Fourier_SIM_dataset(Dataset):
             if ".tif" in folder:
                 self.images.append(folder) # not a folder, but file (used for --test)
             else:
-                folderimgs = glob.glob(folder + '/*.tif')
+                folderimgs = sorted(glob.glob(folder + '/*.tif'))
                 self.images.extend(folderimgs)
 
         random.seed(1234)
