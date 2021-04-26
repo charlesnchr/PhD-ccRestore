@@ -76,6 +76,8 @@ def GetParams(): # uniform randomisation
     SIMopt.OTF_and_GT = True
     # use a blurred target (according to theoretical optimal construction)
     SIMopt.applyOTFtoGT = opt.applyOTFtoGT
+    # whether to simulate images using just widefield illumination 
+    SIMopt.noStripes = opt.noStripes
 
 
     return SIMopt
