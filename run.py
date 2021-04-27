@@ -579,13 +579,6 @@ def main(opt):
     
 
     print('time: %0.1f' % (time.perf_counter()-t0))
-    
-    if opt.cloud: 
-        print('uploading files')
-        if opt.log:
-            opt.train_stats.close()
-            opt.test_stats.close()
-        cloudpush(opt)    
 
     # optional clean up
     if opt.disposableTrainingData and not opt.test:
@@ -601,7 +594,14 @@ def main(opt):
                 samplecount += 1
                 if samplecount == 10:
                     break
-        shutil.rmtree(opt.out)
+        shutil.rmtree(opt.root)
+    
+    if opt.cloud: 
+        print('uploading files')
+        if opt.log:
+            opt.train_stats.close()
+            opt.test_stats.close()
+        cloudpush(opt)    
 
 
 if __name__ == '__main__':

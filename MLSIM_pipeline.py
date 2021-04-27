@@ -112,7 +112,7 @@ if __name__ == '__main__':
 
     files = []
     for ext in opt.ext:
-        files.extend(glob.glob(opt.sourceimages_path + "/*." + ext))
+        files.extend(sorted(glob.glob(opt.sourceimages_path + "/*." + ext)))
 
     if len(files) == 0:
         print('source images not found')

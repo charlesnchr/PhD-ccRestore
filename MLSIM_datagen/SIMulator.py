@@ -30,7 +30,7 @@ def GetParams(): # uniform randomisation
     opt = argparse.Namespace()
 
     # phase shifts for each stripe
-    opt.Nshifts = 3
+    opt.Nshifts = 1
     # number of orientations of stripes
     opt.Nangles = 3
     # used to adjust PSF/OTF width
@@ -60,6 +60,8 @@ def GetParams(): # uniform randomisation
     # include OTF and GT in stack
     opt.OTF_and_GT = True
     opt.applyOTFtoGT = True
+    opt.noStripes = True
+    
 
     return opt
 
