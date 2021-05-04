@@ -255,7 +255,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                     wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
                 else:
                     wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)})
-                wandb.log({'valid_img_bc_%d' % count: wandb.Image(bc)})
+                    wandb.log({'valid_img_bc_%d' % count: wandb.Image(bc)})
                     wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)})
                     wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
                     
