@@ -2,7 +2,7 @@ import torch
 import matplotlib.pyplot as plt
 import torchvision
 import skimage
-from skimage.measure import compare_ssim
+
 import torchvision.transforms as transforms
 import numpy as np
 import time
