@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import torchvision
 import skimage
 # from skimage.metrics import structural_similarity
-from skimage.measure import compare_ssim
+from skimage import measure
 import torchvision.transforms as transforms
 import numpy as np
 import time
@@ -30,7 +30,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
     def SSIM_numpy(p0,p1):
         I0,I1 = np.array(p0)/255.0, np.array(p1)/255.0
         # return structural_similarity(I0, I1, multichannel=True)
-        return compare_ssim(I0, I1, multichannel=True)
+        return measure.compare_ssim(I0, I1, multichannel=True)
 
     def calcScores(img, hr=None, makeplotBool=False, plotidx=0, title=None):
         if makeplotBool:
@@ -255,7 +255,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                     wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
                 else:
                     wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)})
-                    wandb.log({'valid_img_bc_%d' % count: wandb.Image(bc)})
+                wandb.log({'valid_img_bc_%d' % count: wandb.Image(bc)})
                     wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)})
                     wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
                     
