@@ -11,8 +11,6 @@ from PIL import Image
 import scipy.ndimage as ndimage
 import torch.nn as nn
 import os
-import wandb
-
 
 plt.switch_backend('agg')
 
@@ -250,14 +248,14 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
 
             if True: # wandb imaging logging
                 if opt.task == 'segment':
-                    wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)})
-                    wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)})
-                    wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
+                    opt.wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)})
+                    opt.wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)})
+                    opt.wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
                 else:
-                    wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)})
-                    wandb.log({'valid_img_bc_%d' % count: wandb.Image(bc)})
-                    wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)})
-                    wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
+                    opt.wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)})
+                    opt.wandb.log({'valid_img_bc_%d' % count: wandb.Image(bc)})
+                    opt.wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)})
+                    opt.wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
                     
 
             if opt.logimage:
@@ -282,6 +280,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
         summarystr += 'Warning: all test samples skipped - count forced to 1 -- '
         count = 1
     summarystr += 'Testing of %d samples complete. bc: %0.2f dB / %0.4f, sr: %0.2f dB / %0.4f' % (count, mean_bc_psnr / count, mean_bc_ssim / count, mean_sr_psnr / count, mean_sr_ssim / count)
+    opt.wandb.log({'valid_bc_psnr':mean_bc_psnr / count, 'valid_bc_ssim': mean_bc_ssim / count, 'valid_sr_psnr':mean_sr_psnr / count, 'valid_sr_ssim': mean_sr_ssim / count})
     print(summarystr)
     print(summarystr,file=opt.fid)
     opt.fid.flush()

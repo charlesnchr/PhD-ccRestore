@@ -471,7 +471,7 @@ def train(opt, dataloader, validloader, net):
             scheduler.step()
             for param_group in optimizer.param_groups:
                 print('\nLearning rate', param_group['lr'])
-                wandb.log({'lr': param_group['lr']})
+                opt.wandb.log({'lr': param_group['lr']})
                 break
 
         # ---------------- Printing -----------------
@@ -480,7 +480,7 @@ def train(opt, dataloader, validloader, net):
         eta = (opt.nepoch - (epoch + 1)) * t1 / (epoch + 1)
         ostr = '\nEpoch [%d/%d] done, mean loss: %0.6f, time spent: %0.1fs, ETA: %0.1fs' % (
             epoch+1, opt.nepoch, mean_loss, t1, eta)
-        wandb.log({'epoch':epoch+1,'mean_loss': mean_loss})
+        opt.wandb.log({'epoch':epoch+1,'mean_loss': mean_loss})
         print(ostr)
         print(ostr, file=opt.fid)
         opt.fid.flush()
@@ -564,7 +564,7 @@ def main(opt):
         net = GetModel(opt)
     
     if not opt.test:
-        wandb.watch(model, log_freq=100)
+        opt.wandb.watch(model, log_freq=100)
         train(opt, dataloader, validloader, net)
         # torch.save(net.state_dict(), opt.out + '/final.pth')
     else:
@@ -613,4 +613,5 @@ if __name__ == '__main__':
     opt = options()
     wandb.init(project="phd")
     wandb.config.update(opt) 
+    opt.wandb = wandb
     main(opt)

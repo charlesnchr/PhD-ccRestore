@@ -103,13 +103,14 @@ def processImage(file):
         SIMopt.outputname = '%s/%s_%d.tif' % (opt.root, filename, n)
         I = MLSIM_datagen.SIMulator_functions.Generate_SIM_Image(SIMopt, Io)
     
-    wandb.log({'processed_imgfile':file})
+    opt.wandb.log({'processed_imgfile':file})
 
 
 if __name__ == '__main__':
     
     wandb.init(project="phd")
     wandb.config.update(opt)
+    opt.wandb = wandb
 
     os.makedirs(opt.root, exist_ok=True)
     os.makedirs(opt.out, exist_ok=True)
