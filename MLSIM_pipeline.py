@@ -11,6 +11,7 @@ import subprocess
 import MLSIM_datagen.SIMulator_functions
 import run
 import shutil
+import wandb
 
 # ------------ Options --------------
 from options import parser
@@ -40,6 +41,7 @@ parser.add_argument('--noStripes', action='store_true')
 
 opt = parser.parse_args()
 print(opt)
+
 # ------------ Parameters-------------
 def GetParams(): # uniform randomisation
     SIMopt = argparse.Namespace()
@@ -100,9 +102,14 @@ def processImage(file):
         SIMopt = GetParams()
         SIMopt.outputname = '%s/%s_%d.tif' % (opt.root, filename, n)
         I = MLSIM_datagen.SIMulator_functions.Generate_SIM_Image(SIMopt, Io)
+    
+    wandb.log({'processed_imgfile':file})
 
 
 if __name__ == '__main__':
+    
+    wandb.init(project="phd")
+    wandb.config.update(opt)
 
     os.makedirs(opt.root, exist_ok=True)
     os.makedirs(opt.out, exist_ok=True)
@@ -138,5 +145,6 @@ if __name__ == '__main__':
     # subprocess.Popen(cmd,shell=True)
     if not opt.dataonly:
         print('Now starting training:\n')
+        
         run.main(opt)
     

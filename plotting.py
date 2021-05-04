@@ -11,6 +11,7 @@ from PIL import Image
 import scipy.ndimage as ndimage
 import torch.nn as nn
 import os
+import wandb
 
 
 plt.switch_backend('agg')
@@ -247,6 +248,17 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                 orig_filename = os.path.basename(bat[-1][0])
                 sr.save('%s/%s.png' % (opt.out,orig_filename))
 
+            if True: # wandb imaging logging
+                if opt.task == 'segment':
+                    wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)})
+                    wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)})
+                    wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
+                else:
+                    wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)})
+                    wandb.log({'valid_img_bc_%d' % count: wandb.Image(bc)})
+                    wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)})
+                    wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
+                    
 
             if opt.logimage:
                 if opt.task == 'segment':
