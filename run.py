@@ -23,6 +23,7 @@ from datetime import datetime
 import shutil
 import sys
 import glob
+import wandb
 
 
 def options():
