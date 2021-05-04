@@ -56,7 +56,7 @@ while True:
                 if tnow - submission_times.get(idx) < 1800: # wait at least 30 minutes
                     continue
 
-            if len(line.split('|')[-1].strip()) == 0:
+            if len(line.split('|')[-1].strip()) == 0 or memory_used < 500:
                 submit_job = idx
                 break
         
