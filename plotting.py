@@ -159,7 +159,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                     calcScores(hr, None, makeplotBool, plotidx=4)
                 elif 'sim' in opt.dataset: # SIM dataset 
 
-                    if opt.task == 'simin_simout' or opt.task == 'wfin_simout':
+                    if 'simin_simout' in opt.task or 'wfin_simout' in opt.task:
                         ## sim target
                         gt_bat = bat[2]
                         wf_bat = bat[3]

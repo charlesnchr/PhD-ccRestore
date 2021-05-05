@@ -884,11 +884,11 @@ class Fourier_SIM_dataset(Dataset):
         # if stack.shape[-1] > self.imageSize or stack.shape[-2] > self.imageSize:
         #     stack = transform.resize(stack,(stack.shape[0],self.imageSize,self.imageSize), order=3)
 
-        if self.nch_in == 6:
+        if 'subset' in self.task and self.nch_in == 6:
             inputimg = stack[[0,1,3,4,6,7]]
-        elif self.nch_in == 3:
+        elif 'subset' in self.task and self.nch_in == 3:
             inputimg = stack[[0,4,8]]
-        elif self.nch_in == 1 and not 'wfin' in self.task: # don't do it if widefield input is expected
+        elif 'subset' in self.task and self.nch_in == 1: # don't do it if widefield input is expected
             inputimg = stack[[8]] # used for sequential SIM - first tests from 20201215 have GT as 9th frame
         else:
             inputimg = stack[:self.nch_in]
