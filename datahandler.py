@@ -988,11 +988,11 @@ class Fourier_SIM_dataset(Dataset):
                     inputimg[i] = fac * (inputimg[i] - torch.min(inputimg[i])) / (torch.max(inputimg[i]) - torch.min(inputimg[i]))
         
 
-        if self.task == 'simin_simout':
+        if 'simin_simout' in self.task:
             return inputimg,simimg,gt,widefield,self.images[index]   # sim input, sim output
-        elif self.task == 'wfin_simout':
+        elif 'wfin_simout' in self.task:
             return widefield,simimg,gt,widefield,self.images[index]   # wf input, sim output
-        elif self.task == 'wfin_gtout':
+        elif 'wfin_gtout' in self.task:
             return widefield,gt,simimg,widefield,self.images[index]  # wf input, gt output
         else: # simin_gtout
             return inputimg,gt,simimg,widefield,self.images[index]  # sim input, gt output

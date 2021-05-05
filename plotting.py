@@ -249,14 +249,14 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
 
             if True: # wandb imaging logging
                 if opt.task == 'segment':
-                    opt.wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)})
-                    opt.wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)})
-                    opt.wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
+                    opt.wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)},step=idx+1)
+                    opt.wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)},step=idx+1)
+                    opt.wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)},step=idx+1)
                 else:
-                    opt.wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)})
-                    opt.wandb.log({'valid_img_bc_%d' % count: wandb.Image(bc)})
-                    opt.wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)})
-                    opt.wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)})
+                    opt.wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)},step=idx+1)
+                    opt.wandb.log({'valid_img_bc_%d' % count: wandb.Image(bc)},step=idx+1)
+                    opt.wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)},step=idx+1)
+                    opt.wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)},step=idx+1)
                     
 
             if opt.logimage:
@@ -281,7 +281,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
         summarystr += 'Warning: all test samples skipped - count forced to 1 -- '
         count = 1
     summarystr += 'Testing of %d samples complete. bc: %0.2f dB / %0.4f, sr: %0.2f dB / %0.4f' % (count, mean_bc_psnr / count, mean_bc_ssim / count, mean_sr_psnr / count, mean_sr_ssim / count)
-    opt.wandb.log({'valid_bc_psnr':mean_bc_psnr / count, 'valid_bc_ssim': mean_bc_ssim / count, 'valid_sr_psnr':mean_sr_psnr / count, 'valid_sr_ssim': mean_sr_ssim / count})
+    opt.wandb.log({'valid_bc_psnr':mean_bc_psnr / count, 'valid_bc_ssim': mean_bc_ssim / count, 'valid_sr_psnr':mean_sr_psnr / count, 'valid_sr_ssim': mean_sr_ssim / count},step=idx+1)
     print(summarystr)
     print(summarystr,file=opt.fid)
     opt.fid.flush()
