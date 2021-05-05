@@ -564,7 +564,7 @@ def main(opt):
         net = GetModel(opt)
     
     if not opt.test:
-        opt.wandb.watch(model, log_freq=100)
+        opt.wandb.watch(net, log_freq=100)
         train(opt, dataloader, validloader, net)
         # torch.save(net.state_dict(), opt.out + '/final.pth')
     else:
