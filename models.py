@@ -2168,7 +2168,9 @@ class HAN(nn.Module):
         self.tail = nn.Sequential(*modules_tail)
 
     def forward(self, x):
-        x = self.sub_mean(x)
+        if not self.normalize == None:
+            x = self.normalize(x)
+            
         x = self.head(x)
         res = x
         #pdb.set_trace()
