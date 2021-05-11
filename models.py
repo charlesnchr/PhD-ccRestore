@@ -2114,7 +2114,7 @@ class CSAM_Module(nn.Module):
         # out = out.view(m_batchsize, N, C, height, width)
 
         out = self.gamma*out
-        out = out.view(m_batchsize, -1, height, width)
+        out = out.view(m_batchsize, -1, C, height, width)
         x = x * out + x
         return x
 
@@ -2170,7 +2170,7 @@ class HAN(nn.Module):
     def forward(self, x):
         if not self.normalize == None:
             x = self.normalize(x)
-            
+
         x = self.head(x)
         res = x
         #pdb.set_trace()
