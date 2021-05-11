@@ -18,6 +18,8 @@ def GetModel(opt):
         net = EDSR3Max(normalization=opt.norm,nch_in=opt.nch_in,nch_out=opt.nch_out,scale=opt.scale)
     elif opt.model.lower() == 'rcan':
         net = RCAN(opt)
+    elif opt.model.lower() == 'han':
+        net = HAN(opt)
     elif opt.model.lower() == 'rnan':
         net = RNAN(opt)
     elif opt.model.lower() == 'rrdb' or opt.model.lower() == 'esrgan':
@@ -86,7 +88,7 @@ class MeanShift(nn.Conv2d):
         self.requires_grad = False
 
 
-def normalizationTransforms(normtype):
+def normalizationTransforms(normtype):  ## NB is this even right? I think normalize and unnormalize should be flipped
     if normtype.lower() == 'div2k':
         normalize = MeanShift(1, [0.4485, 0.4375, 0.4045], [0.2436, 0.2330, 0.2424])
         unnormalize = MeanShift(1, [-1.8411, -1.8777, -1.6687], [4.1051, 4.2918, 4.1254])
@@ -2038,3 +2040,188 @@ class ESRGAN_Discriminator(nn.Module):
 
     def forward(self, img):
         return self.model(img)
+
+
+
+# ------------------------------------------------------------------------------------------------------
+#   HAN (holistic attention network)
+# ------------------------------------------------------------------------------------------------------
+
+
+class LAM_Module(nn.Module):
+    """ Layer attention module"""
+    def __init__(self, in_dim):
+        super(LAM_Module, self).__init__()
+        self.chanel_in = in_dim
+
+
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.softmax  = nn.Softmax(dim=-1)
+    def forward(self,x):
+        """
+            inputs :
+                x : input feature maps( B X N X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X N X N
+        """
+        m_batchsize, N, C, height, width = x.size()
+        proj_query = x.view(m_batchsize, N, -1)
+        proj_key = x.view(m_batchsize, N, -1).permute(0, 2, 1)
+        energy = torch.bmm(proj_query, proj_key)
+        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
+        attention = self.softmax(energy_new)
+        proj_value = x.view(m_batchsize, N, -1)
+
+        out = torch.bmm(attention, proj_value)
+        out = out.view(m_batchsize, N, C, height, width)
+
+        out = self.gamma*out + x
+        out = out.view(m_batchsize, -1, height, width)
+        return out
+
+class CSAM_Module(nn.Module):
+    """ Channel-Spatial attention module"""
+    def __init__(self, in_dim):
+        super(CSAM_Module, self).__init__()
+        self.chanel_in = in_dim
+
+
+        self.conv = nn.Conv3d(1, 1, 3, 1, 1)
+        self.gamma = nn.Parameter(torch.zeros(1))
+        #self.softmax  = nn.Softmax(dim=-1)
+        self.sigmoid = nn.Sigmoid()
+    def forward(self,x):
+        """
+            inputs :
+                x : input feature maps( B X N X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X N X N
+        """
+        m_batchsize, C, height, width = x.size()
+        out = x.unsqueeze(1)
+        out = self.sigmoid(self.conv(out))
+        
+        # proj_query = x.view(m_batchsize, N, -1)
+        # proj_key = x.view(m_batchsize, N, -1).permute(0, 2, 1)
+        # energy = torch.bmm(proj_query, proj_key)
+        # energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
+        # attention = self.softmax(energy_new)
+        # proj_value = x.view(m_batchsize, N, -1)
+
+        # out = torch.bmm(attention, proj_value)
+        # out = out.view(m_batchsize, N, C, height, width)
+
+        out = self.gamma*out
+        out = out.view(m_batchsize, -1, height, width)
+        x = x * out + x
+        return x
+
+
+## Holistic Attention Network (HAN)
+class HAN(nn.Module):
+    def __init__(self, opt, conv=conv):
+        super(HAN, self).__init__()
+        
+        n_resgroups = opt.n_resgroups
+        n_resblocks = opt.n_resblocks
+        n_feats = opt.n_feats
+        kernel_size = 3
+        reduction = opt.reduction 
+        scale = opt.scale
+        act = nn.ReLU(True)
+        
+        if not opt.norm == None:
+            self.normalize, self.unnormalize = normalizationTransforms(opt.norm)
+        else:
+            self.normalize, self.unnormalize = None, None
+
+        # define head module
+        modules_head = [conv(args.n_colors, n_feats, kernel_size)]
+
+        # define body module
+        modules_body = [
+            ResidualGroup(
+                conv, n_feats, kernel_size, reduction, act=act, res_scale=1, n_resblocks=n_resblocks) \
+            for _ in range(n_resgroups)]
+
+        modules_body.append(conv(n_feats, n_feats, kernel_size))
+
+        # define tail module
+        if opt.scale == 1:
+            if opt.task == 'segment':
+                modules_tail = [nn.Conv2d(n_feats, opt.nch_out, 1)]
+            else:
+                modules_tail = [conv(n_feats, opt.nch_out, kernel_size)]
+        else:
+            modules_tail = [
+                Upsampler(conv, opt.scale, n_feats, act=False),
+                conv(n_feats, opt.nch_out, kernel_size)]
+
+        self.head = nn.Sequential(*modules_head)
+        self.body = nn.Sequential(*modules_body)
+        self.csa = CSAM_Module(n_feats)
+        self.la = LAM_Module(n_feats)
+        self.last_conv = nn.Conv2d(n_feats*11, n_feats, 3, 1, 1)
+        self.last = nn.Conv2d(n_feats*2, n_feats, 3, 1, 1)
+        self.tail = nn.Sequential(*modules_tail)
+
+    def forward(self, x):
+        x = self.sub_mean(x)
+        x = self.head(x)
+        res = x
+        #pdb.set_trace()
+        for name, midlayer in self.body._modules.items():
+            res = midlayer(res)
+            #print(name)
+            if name=='0':
+                res1 = res.unsqueeze(1)
+            else:
+                res1 = torch.cat([res.unsqueeze(1),res1],1)
+        #res = self.body(x)
+        out1 = res
+        #res3 = res.unsqueeze(1)
+        #res = torch.cat([res1,res3],1)
+        res = self.la(res1)
+        out2 = self.last_conv(res)
+
+        out1 = self.csa(out1)
+        out = torch.cat([out1, out2], 1)
+        res = self.last(out)
+        
+        res += x
+        #res = self.csa(res)
+
+        x = self.tail(res)
+
+        if not self.unnormalize == None:
+            x = self.unnormalize(x)
+
+        return x 
+
+    def load_state_dict(self, state_dict, strict=False):
+        own_state = self.state_dict()
+        for name, param in state_dict.items():
+            if name in own_state:
+                if isinstance(param, nn.Parameter):
+                    param = param.data
+                try:
+                    own_state[name].copy_(param)
+                except Exception:
+                    if name.find('tail') >= 0:
+                        print('Replace pre-trained upsampler to new one...')
+                    else:
+                        raise RuntimeError('While copying the parameter named {}, '
+                                           'whose dimensions in the model are {} and '
+                                           'whose dimensions in the checkpoint are {}.'
+                                           .format(name, own_state[name].size(), param.size()))
+            elif strict:
+                if name.find('tail') == -1:
+                    raise KeyError('unexpected key "{}" in state_dict'
+                                   .format(name))
+
+        if strict:
+            missing = set(own_state.keys()) - set(state_dict.keys())
+            if len(missing) > 0:
+                raise KeyError('missing keys in state_dict: "{}"'.format(missing))
