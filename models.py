@@ -2138,7 +2138,7 @@ class HAN(nn.Module):
             self.normalize, self.unnormalize = None, None
 
         # define head module
-        modules_head = [conv(args.n_colors, n_feats, kernel_size)]
+        modules_head = [conv(opt.nch_in, n_feats, kernel_size)]
 
         # define body module
         modules_body = [
