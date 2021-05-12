@@ -896,6 +896,8 @@ class Fourier_SIM_dataset(Dataset):
             inputimg = stack[[6,7,8]]
         elif 'last' in self.task and self.nch_in == 1: # don't do it if widefield input is expected
             inputimg = stack[[8]] # used for sequential SIM - first tests from 20201215 have GT as 9th frame
+        elif 'wfin' in self.task:
+            inputimg = stack[:9] 
         else:
             inputimg = stack[:self.nch_in]
 

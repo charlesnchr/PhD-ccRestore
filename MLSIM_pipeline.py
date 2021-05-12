@@ -134,6 +134,9 @@ if __name__ == '__main__':
     wandb.config.update(opt)
     opt.wandb = wandb
 
+    if opt.root == 'auto':
+        opt.root = opt.out + '_SIMdata'
+
     os.makedirs(opt.root, exist_ok=True)
     os.makedirs(opt.out, exist_ok=True)
     
