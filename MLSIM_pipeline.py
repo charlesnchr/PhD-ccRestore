@@ -93,6 +93,11 @@ def processImage(file):
     if 'npy' in opt.ext:
         Io = np.load(file, allow_pickle=True) / 255
         filename = os.path.basename(file).replace('.npy', '')
+
+        if len(Io.shape) > 2 and Io.shape[2] > 3:
+            Io = Io[:,:,8] # assuming t-stack
+        elif Io.shape[2] > 1:
+            Io = Io.mean(2)  # if not grayscale
     else:
         Io = io.imread(file) / 255
         Io = transform.resize(Io, (opt.imageSize, opt.imageSize), anti_aliasing=True)
