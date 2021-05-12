@@ -90,13 +90,17 @@ def GetParams(): # uniform randomisation
 
 # ------------ Main loop --------------
 def processImage(file):
-    Io = io.imread(file) / 255
-    Io = transform.resize(Io, (opt.imageSize, opt.imageSize), anti_aliasing=True)
+    if 'npy' in opt.ext:
+        Io = np.load(file, allow_pickle=True) / 255
+        filename = os.path.basename(file).replace('.npy', '')
+    else:
+        Io = io.imread(file) / 255
+        Io = transform.resize(Io, (opt.imageSize, opt.imageSize), anti_aliasing=True)
 
-    if len(Io.shape) > 2 and Io.shape[2] > 1:
-        Io = Io.mean(2)  # if not grayscale
+        if len(Io.shape) > 2 and Io.shape[2] > 1:
+            Io = Io.mean(2)  # if not grayscale
 
-    filename = os.path.basename(file).replace('.png', '')
+        filename = os.path.basename(file).replace('.png', '')
 
     print('Generating SIM frames for', file)
 
