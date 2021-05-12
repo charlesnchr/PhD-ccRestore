@@ -2171,7 +2171,9 @@ class HAN(nn.Module):
         if not self.normalize == None:
             x = self.normalize(x)
 
+        print('start',x.shape)
         x = self.head(x)
+        print('after head',x.shape)
         res = x
         #pdb.set_trace()
         for name, midlayer in self.body._modules.items():
@@ -2185,8 +2187,11 @@ class HAN(nn.Module):
         out1 = res
         #res3 = res.unsqueeze(1)
         #res = torch.cat([res1,res3],1)
+        print('before LAM',res1.shape)
         res = self.la(res1)
+        print('after LAM, before last conv',res.shape)
         out2 = self.last_conv(res)
+        print('after last conv',out2.shape)
 
         out1 = self.csa(out1)
         out = torch.cat([out1, out2], 1)

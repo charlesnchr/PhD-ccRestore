@@ -890,6 +890,12 @@ class Fourier_SIM_dataset(Dataset):
             inputimg = stack[[0,4,8]]
         elif 'subset' in self.task and self.nch_in == 1: # don't do it if widefield input is expected
             inputimg = stack[[8]] # used for sequential SIM - first tests from 20201215 have GT as 9th frame
+        elif 'last' in self.task and self.nch_in == 6:
+            inputimg = stack[[3,4,5,6,7,8]]
+        elif 'last' in self.task and self.nch_in == 3:
+            inputimg = stack[[6,7,8]]
+        elif 'last' in self.task and self.nch_in == 1: # don't do it if widefield input is expected
+            inputimg = stack[[8]] # used for sequential SIM - first tests from 20201215 have GT as 9th frame
         else:
             inputimg = stack[:self.nch_in]
 
@@ -1005,92 +1011,6 @@ class Fourier_SIM_dataset(Dataset):
 def load_fourier_SIM_dataset(root, category,opt):
 
     dataset = Fourier_SIM_dataset(root, category, opt)
-    if category == 'train':
-        dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
-    else:
-        dataloader = DataLoader(dataset, batch_size=opt.batchSize_test, shuffle=False, num_workers=0)
-    return dataloader    
-
-
-
-
-
-class FourierFreq_SIM_dataset(Dataset):
-
-    def __init__(self, root, category, opt):
-
-        self.images = glob.glob(root + '/*.tif')
-        self.labels = np.genfromtxt(root + '/freq.csv',delimiter=',')
-        self.freqComp = glob.glob(root + '_freqComp/*.tif')
-
-        if category == 'train':
-            self.images = self.images[:opt.ntrain]
-            self.labels = self.labels[:opt.ntrain]
-            self.freqComp = self.freqComp[:opt.ntrain]
-        else:
-            self.images = self.images[-opt.ntest:]
-            self.labels = self.labels[-opt.ntest:]
-            self.freqComp = self.freqComp[-opt.ntest:]
-        
-
-        self.len = len(self.images)
-        self.scale = opt.scale
-
-    def __getitem__(self, index):
-        
-        stack = io.imread(self.images[index])
-
-        inputimg = stack[:9]
-        otf = stack[9]
-        gt = stack[10]
-        targetimg = stack[11] # sim
-        widefield = stack[12]
-
-        inputimg = torch.tensor(inputimg.astype('float') / 255).float()
-        otf = toTensor(otf.astype('float') / np.max(otf)).float()
-        gt = toTensor(gt.astype('float') / 255).float()
-        targetimg = toTensor(targetimg.astype('float') / np.max(targetimg)).float()
-        widefield = toTensor(widefield.astype('float') / np.max(widefield)).float()
-
-        freqStack = io.imread(self.freqComp[index])
-        freqComp = torch.tensor(freqStack.astype('float') / 255).float()
-
-        # gt = torch.tensor(self.labels[index]).float()
-
-        ### Fourier space, 2 channels both positive and negative 
-        fourier_input = torch.zeros(0,256,256)
-
-        # provide Fourier transformed images
-        for i in range(9):
-            f = np.fft.fftshift(np.fft.fft2(inputimg[i]))
-            # k = np.max(np.abs(f))
-
-            # % components
-            freal = np.real(f) 
-            fimag = np.imag(f) 
-
-            freal = torch.tensor(freal).unsqueeze(0).float()
-            fimag = torch.tensor(fimag).unsqueeze(0).float()
-            
-            fourier_input = torch.cat((fourier_input,freal,fimag))
-        
-        ## shuffle
-        # ind = [0,1,2]
-        # random.shuffle(ind)
-
-        # inputimg = inputimg.view(3,3,256,256)[ind].view(9,256,256)
-        # freqComp = freqComp.view(3,3,256,256)[ind].view(9,256,256)
-        # gt = gt.view(3,6)[ind].view(-1)
-        
-
-        return fourier_input,freqComp, gt, widefield
-
-    def __len__(self):
-        return self.len        
-
-def load_freq_fourier_SIM_dataset(root, category,opt):
-
-    dataset = FourierFreq_SIM_dataset(root, category, opt)
     if category == 'train':
         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
     else:

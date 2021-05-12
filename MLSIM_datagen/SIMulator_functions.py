@@ -94,7 +94,7 @@ def SIMimages(opt, DIo, PSFo, OTFo):
                 sig = opt.meanInten[i_a] + opt.ampInten[i_a] * cos(2*pi*(k2mat[i_a, 0]*(X-wo) +
                             k2mat[i_a, 1]*(Y-wo))+ps[i_a, i_s])
             else:
-                sig = 1 # simulating sidefield
+                sig = 1 # simulating widefield
 
             sup_sig = DIo*sig  # superposed signal
 

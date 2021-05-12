@@ -9,6 +9,7 @@ import argparse
 from multiprocessing import Pool
 import subprocess
 import MLSIM_datagen.SIMulator_functions
+import MLSIM_datagen.SeqSIMulator_functions
 import run
 import shutil
 import wandb
@@ -18,7 +19,7 @@ from options import parser
 parser.add_argument('--sourceimages_path', type=str, default='/local/scratch/cnc39/phd/datasets/DIV2K/DIV2K_train_HR')
 parser.add_argument('--nrep', type=int, default=1, help='instances of same source image')
 parser.add_argument('--datagen_workers', type=int, default=8, help='')
-parser.add_argument('--ext', nargs='+', default=['png'], choices=['png','jpg','tif','jpeg'])
+parser.add_argument('--ext', nargs='+', default=['png'], choices=['png','jpg','tif','jpeg','npy'])
 
 # SIM options to control from command line
 parser.add_argument('--Nshifts', type=int, default=3)
@@ -38,6 +39,7 @@ parser.add_argument('--dontShuffleOrientations', action='store_true')
 parser.add_argument('--dataonly', action='store_true')
 parser.add_argument('--applyOTFtoGT', action='store_true')
 parser.add_argument('--noStripes', action='store_true')
+parser.add_argument('--seqSIM', action='store_true')
 
 opt = parser.parse_args()
 print(opt)
@@ -103,7 +105,27 @@ def processImage(file):
         SIMopt.outputname = '%s/%s_%d.tif' % (opt.root, filename, n)
         I = MLSIM_datagen.SIMulator_functions.Generate_SIM_Image(SIMopt, Io)
     
-    opt.wandb.log({'processed_imgfile':file})
+
+# ------------ Main loop --------------
+def processSeqImage(file):
+    if 'npy' in opt.ext:
+        Io = np.load(file, allow_pickle=True) / 255
+    else:
+        Io = io.imread(file).transpose(1,2,0) / 255
+    # Io = transform.resize(Io, (256, 256), anti_aliasing=True)
+
+    # if len(Io.shape) > 2 and Io.shape[2] > 1:
+    #     Io = Io.mean(2)  # if not grayscale
+
+    filename = os.path.basename(file).replace('.npy', '')
+
+    print('Generating SIM frames for', file)
+
+    for n in range(opt.nrep):
+        SIMopt = GetParams()
+        SIMopt.outputname = '%s/%s_%d.tif' % (opt.root, filename, n)
+        I = MLSIM_datagen.SeqSIMulator_functions.Generate_SIM_Image(SIMopt, Io)
+
 
 
 if __name__ == '__main__':
@@ -135,7 +157,11 @@ if __name__ == '__main__':
     files = files[:math.ceil( (opt.ntrain + opt.ntest) / opt.nrep )]
 
     with Pool(opt.datagen_workers) as p:
-        p.map(processImage,files)
+        if not opt.seqSIM:
+            p.map(processImage,files)
+        else:
+            p.map(processSeqImage,files)
+
 
 
     print('Done generating images,',opt.root)
