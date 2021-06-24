@@ -19,7 +19,8 @@ from options import parser
 parser.add_argument('--sourceimages_path', type=str, default='/local/scratch/cnc39/phd/datasets/DIV2K/DIV2K_train_HR')
 parser.add_argument('--nrep', type=int, default=1, help='instances of same source image')
 parser.add_argument('--datagen_workers', type=int, default=8, help='')
-parser.add_argument('--ext', nargs='+', default=['png']) 
+parser.add_argument('--ext', nargs='+', default=['png'])
+
 
 # SIM options to control from command line
 parser.add_argument('--Nshifts', type=int, default=3)
