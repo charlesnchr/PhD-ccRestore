@@ -19,7 +19,7 @@ from options import parser
 parser.add_argument('--sourceimages_path', type=str, default='/local/scratch/cnc39/phd/datasets/DIV2K/DIV2K_train_HR')
 parser.add_argument('--nrep', type=int, default=1, help='instances of same source image')
 parser.add_argument('--datagen_workers', type=int, default=8, help='')
-parser.add_argument('--ext', nargs='+', default=['png'], choices=['png','jpg','tif','jpeg','npy'])
+parser.add_argument('--ext', nargs='+', default=['png']) 
 
 # SIM options to control from command line
 parser.add_argument('--Nshifts', type=int, default=3)
@@ -141,6 +141,29 @@ def processSeqImage(file):
         I = MLSIM_datagen.SeqSIMulator_functions.Generate_SIM_Image(SIMopt, Io)
 
 
+def processSeqImageFolder(filepath):
+    # Io = np.load(file, allow_pickle=True) / 255
+    Io = []
+    for i in range(9):
+        im = io.imread('%s/%02d.jpg' % (filepath,(i+1))) / 255
+        im = im.mean(axis=2)
+        Io.append(im)
+    
+    Io = np.array(Io).transpose(1,2,0) / 255
+    # Io = transform.resize(Io, (256, 256), anti_aliasing=True)
+
+    # if len(Io.shape) > 2 and Io.shape[2] > 1:
+    #     Io = Io.mean(2)  # if not grayscale
+    filename = os.path.basename(filepath)
+    pardir = os.path.basename(os.path.abspath(os.path.join(filepath, os.pardir)))
+
+    print('Generating SIM frames for', filepath)
+
+    for n in range(opt.nrep):
+        SIMopt = GetParams()
+        SIMopt.outputname = '%s/%s_%d.tif' % (opt.root, filename, n)
+        I = MLSIM_datagen.SeqSIMulator_functions.Generate_SIM_Image(SIMopt, Io)
+
 
 if __name__ == '__main__':
     
@@ -159,8 +182,13 @@ if __name__ == '__main__':
         shutil.copy2('MLSIM_datagen/SIMulator_functions.py',opt.out)
 
         files = []
-        for ext in opt.ext:
-            files.extend(sorted(glob.glob(opt.sourceimages_path + "/*." + ext)))
+        if not ext == 'imagefolder':
+            for ext in opt.ext:
+                files.extend(sorted(glob.glob(opt.sourceimages_path + "/*." + ext)))
+        else:
+            folders = glob.glob("%s/*" % opt.sourceimages_path)
+            for folder in folders:
+                files.extend(glob.glob("%s/*" % folder))
 
         if len(files) == 0:
             print('source images not found')
@@ -177,9 +205,10 @@ if __name__ == '__main__':
         with Pool(opt.datagen_workers) as p:
             if not opt.seqSIM:
                 p.map(processImage,files)
-            else:
+            elif not ext == 'imagefolder':
                 p.map(processSeqImage,files)
-
+            else:
+                p.map(processSeqImageFolder,files) # processSeqImage if using tif files instead of folders of jpgs
 
 
         print('Done generating images,',opt.root)
