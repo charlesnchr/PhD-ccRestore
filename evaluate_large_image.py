@@ -113,7 +113,7 @@ def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
 
     proc_images = []
     for idx,sub_img in enumerate(tqdm(images,leave=False)):
-        # sub_img = (sub_img - np.min(sub_img)) / (np.max(sub_img) - np.min(sub_img))
+        sub_img = (sub_img - np.min(sub_img)) / (np.max(sub_img) - np.min(sub_img))
         pil_sub_img = Image.fromarray((sub_img*255).astype('uint8'))
         sub_tensor = toTensor(pil_sub_img)
         sub_tensor = sub_tensor.unsqueeze(0)
@@ -127,6 +127,8 @@ def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
             # sr = torch.clamp(sr,min=0,max=1)
 
             m = nn.LogSoftmax(dim=0)
+
+            # torch.save(sr[0], 'output%d.pth' % idx)
             sr = m(sr[0])
             sr = sr.argmax(dim=0, keepdim=True)
             
@@ -174,7 +176,9 @@ def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
 
     Image.fromarray(oimg).save(savepath_out)
     if opt.save_input:
-        io.imsave(savepath_in,img_as_ubyte(img))
+        img_float = img.astype('float')
+        img_float = exposure.rescale_intensity(img_float,out_range=(0,1))
+        io.imsave(savepath_in,img_as_ubyte(img_float))
         
     # Image.fromarray((img*255).astype('uint8')).save('%s/input_%04d.png' % (opt.out,i))
 
@@ -219,7 +223,7 @@ def EvaluateModel(opt):
         for ext in opt.ext:
             # imgs.extend(glob.glob(opt.root + '/*.jpg')) # scan only folder
             if len(imgs) == 0: # scan everything
-                imgs.extend(glob.glob(opt.root + '/**/*.%s' % ext,recursive=True))
+                imgs.extend(glob.glob(opt.root + '/**/*.%s' % ext,recursive=True)) 
 
     pbar_outer = tqdm(imgs)
     for imgidx, imgfile in enumerate(pbar_outer):

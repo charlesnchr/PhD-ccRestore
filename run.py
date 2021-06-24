@@ -14,7 +14,7 @@ from datahandler import GetDataloaders
 from plotting import testAndMakeCombinedPlots, generate_convergence_plots
 import testfunctions
 
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 from options import parser
 import traceback
@@ -541,8 +541,8 @@ def main(opt):
     dataloader, validloader = GetDataloaders(opt)
     
     if opt.log:
-        opt.writer = SummaryWriter(log_dir=opt.out, comment='_%s_%s' % (
-            opt.out.replace('\\', '/').split('/')[-1], opt.model))
+        # opt.writer = SummaryWriter(log_dir=opt.out, comment='_%s_%s' % (
+        #     opt.out.replace('\\', '/').split('/')[-1], opt.model))
         opt.train_stats = open(opt.out.replace(
             '\\', '/') + '/train_stats.csv', 'w')
         opt.test_stats = open(opt.out.replace(

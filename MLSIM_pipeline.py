@@ -40,9 +40,14 @@ parser.add_argument('--dataonly', action='store_true')
 parser.add_argument('--applyOTFtoGT', action='store_true')
 parser.add_argument('--noStripes', action='store_true')
 parser.add_argument('--seqSIM', action='store_true')
+parser.add_argument('--skip_datagen', action='store_true')
 
 opt = parser.parse_args()
-print(opt)
+
+if opt.root == 'auto':
+    opt.root = opt.out + '_SIMdata'
+
+
 
 # ------------ Parameters-------------
 def GetParams(): # uniform randomisation
@@ -139,44 +144,45 @@ def processSeqImage(file):
 
 if __name__ == '__main__':
     
-    wandb.init(project="phd")
-    wandb.config.update(opt)
-    opt.wandb = wandb
+    # wandb.init(project="phd")
+    # wandb.config.update(opt)
+    # opt.wandb = wandb
 
-    if opt.root == 'auto':
-        opt.root = opt.out + '_SIMdata'
+    print(opt)
 
-    os.makedirs(opt.root, exist_ok=True)
-    os.makedirs(opt.out, exist_ok=True)
-    
-    shutil.copy2('MLSIM_pipeline.py',opt.out)
-    shutil.copy2('MLSIM_datagen/SIMulator_functions.py',opt.out)
+    if not opt.skip_datagen:
 
-    files = []
-    for ext in opt.ext:
-        files.extend(sorted(glob.glob(opt.sourceimages_path + "/*." + ext)))
+        os.makedirs(opt.root, exist_ok=True)
+        os.makedirs(opt.out, exist_ok=True)
+        
+        shutil.copy2('MLSIM_pipeline.py',opt.out)
+        shutil.copy2('MLSIM_datagen/SIMulator_functions.py',opt.out)
 
-    if len(files) == 0:
-        print('source images not found')
-        sys.exit(0)
-    elif opt.ntrain + opt.ntest > opt.nrep*len(files):
-        print('ntrain + opt.ntest is too high given nrep and number of source images')
-        sys.exit(0)
-    elif opt.nch_in > opt.Nangles*opt.Nshifts:
-        print('nch_in cannot be greater than Nangles*Nshifts - not enough SIM frames')
-        sys.exit(0)
-    
-    files = files[:math.ceil( (opt.ntrain + opt.ntest) / opt.nrep )]
+        files = []
+        for ext in opt.ext:
+            files.extend(sorted(glob.glob(opt.sourceimages_path + "/*." + ext)))
 
-    with Pool(opt.datagen_workers) as p:
-        if not opt.seqSIM:
-            p.map(processImage,files)
-        else:
-            p.map(processSeqImage,files)
+        if len(files) == 0:
+            print('source images not found')
+            sys.exit(0)
+        elif opt.ntrain + opt.ntest > opt.nrep*len(files):
+            print('ntrain + opt.ntest is too high given nrep and number of source images')
+            sys.exit(0)
+        elif opt.nch_in > opt.Nangles*opt.Nshifts:
+            print('nch_in cannot be greater than Nangles*Nshifts - not enough SIM frames')
+            sys.exit(0)
+        
+        files = files[:math.ceil( (opt.ntrain + opt.ntest) / opt.nrep )]
+
+        with Pool(opt.datagen_workers) as p:
+            if not opt.seqSIM:
+                p.map(processImage,files)
+            else:
+                p.map(processSeqImage,files)
 
 
 
-    print('Done generating images,',opt.root)
+        print('Done generating images,',opt.root)
 
 
     # cmd = '\npython run.py ' + ' '.join(sys.argv[:])

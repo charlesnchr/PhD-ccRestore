@@ -7,6 +7,7 @@ import torchvision
 import torchvision.models as models
 import functools # used by RRDBNet
 import math
+from RRN_arch import RRN 
 
 
 def GetModel(opt):
@@ -18,6 +19,10 @@ def GetModel(opt):
         net = EDSR3Max(normalization=opt.norm,nch_in=opt.nch_in,nch_out=opt.nch_out,scale=opt.scale)
     elif opt.model.lower() == 'rcan':
         net = RCAN(opt)
+    elif opt.model.lower() == 'rnn':
+        n_c = 128
+        n_b = 10
+        net = RRN(opt.scale, n_c, n_b)
     elif opt.model.lower() == 'han':
         net = HAN(opt)
     elif opt.model.lower() == 'rnan':
