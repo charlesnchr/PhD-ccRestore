@@ -2,7 +2,7 @@ import numpy as np
 from numpy import pi, cos, sin
 from numpy.fft import fft2, ifft2, fftshift, ifftshift
 
-from skimage import io
+from skimage import io,transform
 from scipy.signal import convolve2d
 import scipy.special
 
@@ -71,7 +71,7 @@ def SIMimages(opt, DIo, PSFo, OTFo):
     for i in range(opt.Nangles):
         orientation[i] = i*pi/opt.Nangles + opt.alpha + opt.angleError
 
-    if opt.shuffleOrientations: 
+    if opt.shuffleOrientations:
         np.random.shuffle(orientation)
 
     # illumination frequency vectors
@@ -109,10 +109,13 @@ def SIMimages(opt, DIo, PSFo, OTFo):
         sup_sig = DIo[:,:,signal_idx]*sigs[illum_idx]  # superposed signal
 
         # superposed (noise-free) Images
-        if opt.UsePSF == 1:
-            ST = conv2(sup_sig, PSFo, 'same')
+        if opt.scale < 2: # hack option to make undblurred images
+            if opt.UsePSF == 1:
+                ST = conv2(sup_sig, PSFo, 'same')
+            else:
+                ST = np.real(ifft2(fft2(sup_sig)*fftshift(OTFo)))
         else:
-            ST = np.real(ifft2(fft2(sup_sig)*fftshift(OTFo)))
+            ST = sup_sig
 
         # Gaussian noise generation
         aNoise = opt.NoiseLevel/100  # noise
@@ -129,27 +132,65 @@ def SIMimages(opt, DIo, PSFo, OTFo):
 
 
 # %%
-def Generate_SIM_Image(opt, Io):
+def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024):
 
-    w = Io.shape[0]
+    DIo = Io.astype('float')
+
+    if in_dim is not None:
+        DIo = transform.resize(Io, (in_dim, in_dim), anti_aliasing=True, order=3)
+
+    w = DIo.shape[0]
 
     # Generation of the PSF with Besselj.
 
     PSFo, OTFo = PsfOtf(w, opt.scale)
 
-    DIo = Io.astype('float')
-
     frames = SIMimages(opt, DIo, PSFo, OTFo)
+
 
     if opt.OTF_and_GT:
         frames.append(OTFo)
-        frames.append(Io[:,:,-1])
+
+        gt_img = Io[:,:,opt.Nangles*opt.Nshifts // 2].astype('float') # center frame
+        gt_img = transform.resize(gt_img, (gt_dim,gt_dim), order=3)
+
+        if gt_dim > in_dim: # assumes a upscale factor of 2 is given
+            # gt_img = skimage.transform.resize(gt_img, (gt_dim,gt_dim), order=3)
+            gt11 = gt_img[:in_dim,:in_dim]
+            gt21 = gt_img[in_dim:,:in_dim]
+            gt12 = gt_img[:in_dim,in_dim:]
+            gt22 = gt_img[in_dim:,in_dim:]
+            # frames.extend([gt11,gt21,gt12,gt22])
+            frames.append(gt11)
+            frames.append(gt21)
+            frames.append(gt12)
+            frames.append(gt22)
+        else:
+            frames.append(Io[:,:,-1])
     stack = np.array(frames)
 
-    # normalise
-    for i in range(len(stack)):
-        stack[i] = (stack[i] - np.min(stack[i])) / \
-            (np.max(stack[i]) - np.min(stack[i]))
+    # NORMALIZE
+
+    # does not work well with partitioned GT
+    # for i in range(len(stack)):
+        # stack[i] = (stack[i] - np.min(stack[i])) / \
+            # (np.max(stack[i]) - np.min(stack[i]))
+
+    # normalised SIM stack
+    simstack = stack[:opt.Nangles*opt.Nshifts]
+    stack[:opt.Nangles*opt.Nshifts] = (simstack - np.min(simstack)) / (np.max(simstack) - np.min(simstack))
+
+    # normalised gt
+    if gt_dim > in_dim:
+        gtstack = stack[-4:]
+        stack[-4:] = (gtstack - np.min(gtstack)) / (np.max(gtstack) - np.min(gtstack))
+        # normalised OTF
+        stack[-5] = (stack[-5] - np.min(stack[-5])) / (np.max(stack[-5] - np.min(stack[-5])))
+    else:
+        stack[-1] = (stack[-1] - np.min(stack[-1])) / (np.max(stack[-1] - np.min(stack[-1])))
+        # normalised OTF
+        stack[-2] = (stack[-2] - np.min(stack[-2])) / (np.max(stack[-2] - np.min(stack[-2])))
+
 
     stack = (stack * 255).astype('uint8')
 

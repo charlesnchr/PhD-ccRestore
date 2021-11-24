@@ -48,7 +48,7 @@ opt = parser.parse_args()
 if opt.root == 'auto':
     opt.root = opt.out + '_SIMdata'
 
-
+np.random.seed(20211112)
 
 # ------------ Parameters-------------
 def GetParams(): # uniform randomisation
@@ -86,7 +86,7 @@ def GetParams(): # uniform randomisation
     SIMopt.OTF_and_GT = True
     # use a blurred target (according to theoretical optimal construction)
     SIMopt.applyOTFtoGT = opt.applyOTFtoGT
-    # whether to simulate images using just widefield illumination 
+    # whether to simulate images using just widefield illumination
     SIMopt.noStripes = opt.noStripes
 
 
@@ -106,7 +106,7 @@ def processImage(file):
             Io = Io.mean(2)  # if not grayscale
     else:
         Io = io.imread(file) / 255
-        Io = transform.resize(Io, (opt.imageSize, opt.imageSize), anti_aliasing=True)
+        # Io = transform.resize(Io, (opt.imageSize, opt.imageSize), anti_aliasing=True)
 
         if len(Io.shape) > 2 and Io.shape[2] > 1:
             Io = Io.mean(2)  # if not grayscale
@@ -118,8 +118,8 @@ def processImage(file):
     for n in range(opt.nrep):
         SIMopt = GetParams()
         SIMopt.outputname = '%s/%s_%d.tif' % (opt.root, filename, n)
-        I = MLSIM_datagen.SIMulator_functions.Generate_SIM_Image(SIMopt, Io)
-    
+        I = MLSIM_datagen.SIMulator_functions.Generate_SIM_Image(SIMopt, Io, opt.imageSize, opt.imageSize*opt.scale)
+
 
 # ------------ Main loop --------------
 def processSeqImage(file):
@@ -139,17 +139,23 @@ def processSeqImage(file):
     for n in range(opt.nrep):
         SIMopt = GetParams()
         SIMopt.outputname = '%s/%s_%d.tif' % (opt.root, filename, n)
-        I = MLSIM_datagen.SeqSIMulator_functions.Generate_SIM_Image(SIMopt, Io)
+        I = MLSIM_datagen.SeqSIMulator_functions.Generate_SIM_Image(SIMopt, Io, opt.imageSize, opt.imageSize*opt.scale)
 
 
 def processSeqImageFolder(filepath):
     # Io = np.load(file, allow_pickle=True) / 255
     Io = []
-    for i in range(9):
-        im = io.imread('%s/%02d.jpg' % (filepath,(i+1))) / 255
-        im = im.mean(axis=2)
+    # for i in range(9):
+        # im = io.imread('%s/%02d.jpg' % (filepath,(i+1))) / 255
+        # im = im.mean(axis=2)
+        # Io.append(im)
+
+    for file in sorted(glob.glob('%s/*' % filepath)):
+        im = io.imread(file) / 255
+        if len(im.shape) > 2:
+            im = im.mean(axis=2)
         Io.append(im)
-    
+
     Io = np.array(Io).transpose(1,2,0) / 255
     # Io = transform.resize(Io, (256, 256), anti_aliasing=True)
 
@@ -162,12 +168,13 @@ def processSeqImageFolder(filepath):
 
     for n in range(opt.nrep):
         SIMopt = GetParams()
-        SIMopt.outputname = '%s/%s_%d.tif' % (opt.root, filename, n)
-        I = MLSIM_datagen.SeqSIMulator_functions.Generate_SIM_Image(SIMopt, Io)
+        SIMopt.outputname = '%s/%s_%s_%d.tif' % (opt.root, pardir, filename, n)
+        I = MLSIM_datagen.SeqSIMulator_functions.Generate_SIM_Image(SIMopt, Io, opt.imageSize, opt.imageSize*opt.scale)
+
 
 
 if __name__ == '__main__':
-    
+
     # wandb.init(project="phd")
     # wandb.config.update(opt)
     # opt.wandb = wandb
@@ -178,18 +185,20 @@ if __name__ == '__main__':
 
         os.makedirs(opt.root, exist_ok=True)
         os.makedirs(opt.out, exist_ok=True)
-        
+
         shutil.copy2('MLSIM_pipeline.py',opt.out)
         shutil.copy2('MLSIM_datagen/SIMulator_functions.py',opt.out)
 
         files = []
-        if not ext == 'imagefolder':
+        if 'imagefolder' not in opt.ext:
             for ext in opt.ext:
                 files.extend(sorted(glob.glob(opt.sourceimages_path + "/*." + ext)))
         else:
+            print('looking in opt',opt.sourceimages_path)
             folders = glob.glob("%s/*" % opt.sourceimages_path)
             for folder in folders:
-                files.extend(glob.glob("%s/*" % folder))
+                subfolders = glob.glob("%s/*" % folder)
+                files.extend(subfolders)
 
         if len(files) == 0:
             print('source images not found')
@@ -200,13 +209,13 @@ if __name__ == '__main__':
         elif opt.nch_in > opt.Nangles*opt.Nshifts:
             print('nch_in cannot be greater than Nangles*Nshifts - not enough SIM frames')
             sys.exit(0)
-        
+
         files = files[:math.ceil( (opt.ntrain + opt.ntest) / opt.nrep )]
 
         with Pool(opt.datagen_workers) as p:
             if not opt.seqSIM:
                 p.map(processImage,files)
-            elif not ext == 'imagefolder':
+            elif 'imagefolder' not in opt.ext:
                 p.map(processSeqImage,files)
             else:
                 p.map(processSeqImageFolder,files) # processSeqImage if using tif files instead of folders of jpgs
@@ -220,6 +229,6 @@ if __name__ == '__main__':
     # subprocess.Popen(cmd,shell=True)
     if not opt.dataonly:
         print('Now starting training:\n')
-        
+
         run.main(opt)
-    
+

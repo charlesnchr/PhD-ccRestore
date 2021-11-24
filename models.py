@@ -7,7 +7,6 @@ import torchvision
 import torchvision.models as models
 import functools # used by RRDBNet
 import math
-from RRN_arch import RRN 
 
 
 def GetModel(opt):
@@ -19,10 +18,6 @@ def GetModel(opt):
         net = EDSR3Max(normalization=opt.norm,nch_in=opt.nch_in,nch_out=opt.nch_out,scale=opt.scale)
     elif opt.model.lower() == 'rcan':
         net = RCAN(opt)
-    elif opt.model.lower() == 'rnn':
-        n_c = 128
-        n_b = 10
-        net = RRN(opt.scale, n_c, n_b)
     elif opt.model.lower() == 'han':
         net = HAN(opt)
     elif opt.model.lower() == 'rnan':
@@ -31,26 +26,26 @@ def GetModel(opt):
         net = GeneratorRRDB(opt, filters=opt.n_feats, num_res_blocks=opt.n_resblocks,num_upsample=0)
     elif opt.model.lower() == 'srresnet' or opt.model.lower() == 'srgan':
         net = Generator(16, opt)
-    elif opt.model.lower() == 'unet':        
+    elif opt.model.lower() == 'unet':
         net = UNet(opt.nch_in,opt.nch_out,opt)
-    elif opt.model.lower() == 'unet_n2n':        
+    elif opt.model.lower() == 'unet_n2n':
         net = UNet_n2n(opt.nch_in,opt.nch_out,opt)
-    elif opt.model.lower() == 'unet60m':        
+    elif opt.model.lower() == 'unet60m':
         net = UNet60M(opt.nch_in,opt.nch_out)
-    elif opt.model.lower() == 'unetrep':        
-        net = UNetRep(opt.nch_in,opt.nch_out)        
-    elif opt.model.lower() == 'unetgreedy':        
-        net = UNetGreedy(opt.nch_in,opt.nch_out)        
-    elif opt.model.lower() == 'mlpnet':        
-        net = MLPNet()                
-    elif opt.model.lower() == 'ffdnet':        
+    elif opt.model.lower() == 'unetrep':
+        net = UNetRep(opt.nch_in,opt.nch_out)
+    elif opt.model.lower() == 'unetgreedy':
+        net = UNetGreedy(opt.nch_in,opt.nch_out)
+    elif opt.model.lower() == 'mlpnet':
+        net = MLPNet()
+    elif opt.model.lower() == 'ffdnet':
         net = FFDNet(opt.nch_in)
-    elif opt.model.lower() == 'dncnn':        
+    elif opt.model.lower() == 'dncnn':
         net = DNCNN(opt.nch_in)
-    elif opt.model.lower() == 'fouriernet':        
-        net = FourierNet()        
-    elif opt.model.lower() == 'fourierconvnet':        
-        net = FourierConvNet()    
+    elif opt.model.lower() == 'fouriernet':
+        net = FourierNet()
+    elif opt.model.lower() == 'fourierconvnet':
+        net = FourierConvNet()
     elif opt.model.lower() == 'vgg':
         net = models.vgg19(pretrained=True)
         # OUT_FEATURES = net.classifier[0].out_features
@@ -63,22 +58,22 @@ def GetModel(opt):
         for child in net.children():
             for param in child.parameters():
                 param.requires_grad = False
-        
+
         # except last
         net.classifier[-1] = final_fc
         for param in net.classifier[-1].parameters():
             param.requires_grad = True
     else:
-        print("model undefined")    
+        print("model undefined")
         return None
-    
+
     if not opt.cpu:
         net.cuda()
         if opt.multigpu:
             net = nn.DataParallel(net)
 
     return net
-    
+
 
 
 class MeanShift(nn.Conv2d):
@@ -135,7 +130,7 @@ class ResBlock(nn.Module):
         m.append(nn.ReLU(True))
 
         m.append(conv(n_feats, n_feats, kernel_size, bias=bias))
-        
+
         self.body = nn.Sequential(*m)
         self.res_scale = res_scale
 
@@ -170,7 +165,7 @@ class ResBlock2Max(nn.Module):
         m.append(nn.ConvTranspose2d(4*n_feats,2*n_feats,3,stride=2, padding=1, output_padding=1))
 
         m.append(nn.ConvTranspose2d(2*n_feats,n_feats,3,stride=2, padding=1, output_padding=1))
-        
+
         self.body = nn.Sequential(*m)
         self.res_scale = res_scale
 
@@ -209,7 +204,7 @@ class ResBlock3Max(nn.Module):
         m.append(nn.ConvTranspose2d(8*n_feats,4*n_feats,3,stride=2, padding=1, output_padding=1))
         m.append(nn.ConvTranspose2d(4*n_feats,2*n_feats,3,stride=2, padding=1, output_padding=1))
         m.append(nn.ConvTranspose2d(2*n_feats,n_feats,3,stride=2, padding=1, output_padding=1))
-        
+
         self.body = nn.Sequential(*m)
         self.res_scale = res_scale
 
@@ -240,7 +235,7 @@ class Upsampler(nn.Sequential):
             m.append(conv(n_feats, 9 * n_feats, 3, bias))
             m.append(nn.PixelShuffle(3))
             if bn: m.append(nn.BatchNorm2d(n_feats))
-            
+
             if act == 'relu':
                 m.append(nn.ReLU(True))
             elif act == 'prelu':
@@ -259,12 +254,12 @@ class EDSR(nn.Module):
         n_feats = opt.n_feats # originally 64
         kernel_size = 3
         act = nn.ReLU(True)
-        
+
         if not opt.norm == None:
             self.normalize, self.unnormalize = normalizationTransforms(opt.norm)
         else:
             self.normalize, self.unnormalize = None, None
-        
+
 
         # define head module
         m_head = [conv(opt.nch_in, n_feats, kernel_size)]
@@ -293,7 +288,7 @@ class EDSR(nn.Module):
         self.tail = nn.Sequential(*m_tail)
 
     def forward(self, x):
-        
+
         if not self.normalize == None:
             x = self.normalize(x)
 
@@ -307,7 +302,7 @@ class EDSR(nn.Module):
         if not self.unnormalize == None:
             x = self.unnormalize(x)
 
-        return x 
+        return x
 
 
 class EDSR2Max(nn.Module):
@@ -318,12 +313,12 @@ class EDSR2Max(nn.Module):
         n_feats = 64
         kernel_size = 3
         act = nn.ReLU(True)
-        
+
         if not opt.norm == None:
             self.normalize, self.unnormalize = normalizationTransforms(normalization)
         else:
             self.normalize, self.unnormalize = None, None
-        
+
 
         # define head module
         m_head = [conv(nch_in, n_feats, kernel_size)]
@@ -346,7 +341,7 @@ class EDSR2Max(nn.Module):
         self.tail = nn.Sequential(*m_tail)
 
     def forward(self, x):
-        
+
         if not self.normalize == None:
             x = self.normalize(x)
 
@@ -360,7 +355,7 @@ class EDSR2Max(nn.Module):
         if not self.unnormalize == None:
             x = self.unnormalize(x)
 
-        return x 
+        return x
 
 
 
@@ -373,12 +368,12 @@ class EDSR3Max(nn.Module):
         n_feats = 64
         kernel_size = 3
         act = nn.ReLU(True)
-        
+
         if not opt.norm == None:
             self.normalize, self.unnormalize = normalizationTransforms(normalization)
         else:
             self.normalize, self.unnormalize = None, None
-        
+
 
         # define head module
         m_head = [conv(nch_in, n_feats, kernel_size)]
@@ -401,7 +396,7 @@ class EDSR3Max(nn.Module):
         self.tail = nn.Sequential(*m_tail)
 
     def forward(self, x):
-        
+
         if not self.normalize == None:
             x = self.normalize(x)
 
@@ -415,7 +410,7 @@ class EDSR3Max(nn.Module):
         if not self.unnormalize == None:
             x = self.unnormalize(x)
 
-        return x 
+        return x
 
 
 
@@ -481,7 +476,7 @@ class ResidualGroup(nn.Module):
 
 ## Residual Channel Attention Network (RCAN)
 class RCAN(nn.Module):
-    def __init__(self, opt): 
+    def __init__(self, opt):
         super(RCAN, self).__init__()
         n_resgroups = opt.n_resgroups
         n_resblocks = opt.n_resblocks
@@ -490,7 +485,7 @@ class RCAN(nn.Module):
         reduction = opt.reduction
         act = nn.ReLU(True)
         self.narch = opt.narch
-        
+
         if not opt.norm == None:
             self.normalize, self.unnormalize = normalizationTransforms(opt.norm)
         else:
@@ -522,7 +517,7 @@ class RCAN(nn.Module):
             self.head82 = conv(n_feats, n_feats, kernel_size)
             self.combineHead = conv(9*n_feats, n_feats, kernel_size)
 
-            
+
 
         # define body module
         modules_body = [
@@ -542,7 +537,7 @@ class RCAN(nn.Module):
             modules_tail = [
                 Upsampler(conv, opt.scale, n_feats, act=False),
                 conv(n_feats, opt.nch_out, kernel_size)]
-        
+
         self.body = nn.Sequential(*modules_body)
         self.tail = nn.Sequential(*modules_tail)
 
@@ -574,7 +569,7 @@ class RCAN(nn.Module):
         if not self.unnormalize == None:
             x = self.unnormalize(x)
 
-        return x 
+        return x
 
 
 
@@ -588,12 +583,12 @@ class RCAN(nn.Module):
 class NonLocalBlock2D(nn.Module):
     def __init__(self, in_channels, inter_channels):
         super(NonLocalBlock2D, self).__init__()
-        
+
         self.in_channels = in_channels
         self.inter_channels = inter_channels
-        
+
         self.g = nn.Conv2d(in_channels=self.in_channels, out_channels=self.inter_channels, kernel_size=1, stride=1, padding=0)
-        
+
         self.W = nn.Conv2d(in_channels=self.inter_channels, out_channels=self.in_channels, kernel_size=1, stride=1, padding=0)
         # for pytorch 0.3.1
         #nn.init.constant(self.W.weight, 0)
@@ -602,32 +597,32 @@ class NonLocalBlock2D(nn.Module):
         nn.init.constant_(self.W.weight, 0)
         nn.init.constant_(self.W.bias, 0)
         self.theta = nn.Conv2d(in_channels=self.in_channels, out_channels=self.inter_channels, kernel_size=1, stride=1, padding=0)
-        
+
         self.phi = nn.Conv2d(in_channels=self.in_channels, out_channels=self.inter_channels, kernel_size=1, stride=1, padding=0)
 
     def forward(self, x):
 
         batch_size = x.size(0)
-        
+
         g_x = self.g(x).view(batch_size, self.inter_channels, -1)
-        
+
         g_x = g_x.permute(0,2,1)
-        
+
         theta_x = self.theta(x).view(batch_size, self.inter_channels, -1)
-        
+
         theta_x = theta_x.permute(0,2,1)
-        
+
         phi_x = self.phi(x).view(batch_size, self.inter_channels, -1)
-        
+
         f = torch.matmul(theta_x, phi_x)
-       
+
         f_div_C = F.softmax(f, dim=1)
-        
-        
+
+
         y = torch.matmul(f_div_C, g_x)
-        
+
         y = y.permute(0,2,1).contiguous()
-         
+
         y = y.view(batch_size, self.inter_channels, *x.size()[2:])
         W_y = self.W(y)
         z = W_y + x
@@ -646,7 +641,7 @@ class TrunkBranch(nn.Module):
         for i in range(2):
             modules_body.append(ResBlock(conv, n_feat, kernel_size, bias=True, bn=False, act=nn.ReLU(True), res_scale=1))
         self.body = nn.Sequential(*modules_body)
-    
+
     def forward(self, x):
         tx = self.body(x)
 
@@ -661,26 +656,26 @@ class MaskBranchDownUp(nn.Module):
         bias=True, bn=False, act=nn.ReLU(True), res_scale=1):
 
         super(MaskBranchDownUp, self).__init__()
-        
+
         MB_RB1 = []
         MB_RB1.append(ResBlock(conv, n_feat, kernel_size, bias=True, bn=False, act=nn.ReLU(True), res_scale=1))
-         
+
         MB_Down = []
         MB_Down.append(nn.Conv2d(n_feat,n_feat, 3, stride=2, padding=1))
-        
+
         MB_RB2 = []
         for i in range(2):
             MB_RB2.append(ResBlock(conv, n_feat, kernel_size, bias=True, bn=False, act=nn.ReLU(True), res_scale=1))
-         
+
         MB_Up = []
-        MB_Up.append(nn.ConvTranspose2d(n_feat,n_feat, 6, stride=2, padding=2))   
-        
+        MB_Up.append(nn.ConvTranspose2d(n_feat,n_feat, 6, stride=2, padding=2))
+
         MB_RB3 = []
         MB_RB3.append(ResBlock(conv, n_feat, kernel_size, bias=True, bn=False, act=nn.ReLU(True), res_scale=1))
-        
+
         MB_1x1conv = []
         MB_1x1conv.append(nn.Conv2d(n_feat,n_feat, 1, padding=0, bias=True))
-       
+
         MB_sigmoid = []
         MB_sigmoid.append(nn.Sigmoid())
 
@@ -691,7 +686,7 @@ class MaskBranchDownUp(nn.Module):
         self.MB_RB3 = nn.Sequential(*MB_RB3)
         self.MB_1x1conv = nn.Sequential(*MB_1x1conv)
         self.MB_sigmoid = nn.Sequential(*MB_sigmoid)
-    
+
     def forward(self, x):
         x_RB1 = self.MB_RB1(x)
         x_Down = self.MB_Down(x_RB1)
@@ -711,27 +706,27 @@ class NLMaskBranchDownUp(nn.Module):
         bias=True, bn=False, act=nn.ReLU(True), res_scale=1):
 
         super(NLMaskBranchDownUp, self).__init__()
-        
+
         MB_RB1 = []
         MB_RB1.append(NonLocalBlock2D(n_feat, n_feat // 2))
         MB_RB1.append(ResBlock(conv, n_feat, kernel_size, bias=True, bn=False, act=nn.ReLU(True), res_scale=1))
-        
+
         MB_Down = []
         MB_Down.append(nn.Conv2d(n_feat,n_feat, 3, stride=2, padding=1))
-        
+
         MB_RB2 = []
         for i in range(2):
             MB_RB2.append(ResBlock(conv, n_feat, kernel_size, bias=True, bn=False, act=nn.ReLU(True), res_scale=1))
-         
+
         MB_Up = []
-        MB_Up.append(nn.ConvTranspose2d(n_feat,n_feat, 6, stride=2, padding=2))   
-        
+        MB_Up.append(nn.ConvTranspose2d(n_feat,n_feat, 6, stride=2, padding=2))
+
         MB_RB3 = []
         MB_RB3.append(ResBlock(conv, n_feat, kernel_size, bias=True, bn=False, act=nn.ReLU(True), res_scale=1))
-        
+
         MB_1x1conv = []
         MB_1x1conv.append(nn.Conv2d(n_feat,n_feat, 1, padding=0, bias=True))
-        
+
         MB_sigmoid = []
         MB_sigmoid.append(nn.Sigmoid())
 
@@ -742,7 +737,7 @@ class NLMaskBranchDownUp(nn.Module):
         self.MB_RB3 = nn.Sequential(*MB_RB3)
         self.MB_1x1conv = nn.Sequential(*MB_1x1conv)
         self.MB_sigmoid = nn.Sequential(*MB_sigmoid)
-    
+
     def forward(self, x):
         x_RB1 = self.MB_RB1(x)
         x_Down = self.MB_Down(x_RB1)
@@ -758,7 +753,7 @@ class NLMaskBranchDownUp(nn.Module):
 
 
 
-## define residual attention module 
+## define residual attention module
 class ResAttModuleDownUpPlus(nn.Module):
     def __init__(
         self, conv, n_feat, kernel_size,
@@ -773,7 +768,7 @@ class ResAttModuleDownUpPlus(nn.Module):
         RA_tail = []
         for i in range(2):
             RA_tail.append(ResBlock(conv, n_feat, kernel_size, bias=True, bn=False, act=nn.ReLU(True), res_scale=1))
-        
+
         self.RA_RB1 = nn.Sequential(*RA_RB1)
         self.RA_TB  = nn.Sequential(*RA_TB)
         self.RA_MB  = nn.Sequential(*RA_MB)
@@ -790,7 +785,7 @@ class ResAttModuleDownUpPlus(nn.Module):
         return hx
 
 
-## define nonlocal residual attention module 
+## define nonlocal residual attention module
 class NLResAttModuleDownUpPlus(nn.Module):
     def __init__(
         self, conv, n_feat, kernel_size,
@@ -805,7 +800,7 @@ class NLResAttModuleDownUpPlus(nn.Module):
         RA_tail = []
         for i in range(2):
             RA_tail.append(ResBlock(conv, n_feat, kernel_size, bias=True, bn=False, act=nn.ReLU(True), res_scale=1))
-        
+
         self.RA_RB1 = nn.Sequential(*RA_RB1)
         self.RA_TB  = nn.Sequential(*RA_TB)
         self.RA_MB  = nn.Sequential(*RA_MB)
@@ -849,7 +844,7 @@ class _NLResGroup(nn.Module):
 class RNAN(nn.Module):
     def __init__(self, opt):
         super(RNAN, self).__init__()
-        
+
         n_resgroups = opt.n_resgroups
         n_feats = opt.n_feats
         kernel_size = 3
@@ -858,15 +853,15 @@ class RNAN(nn.Module):
 
 
         print(n_resgroup2,n_resblock,n_feats,kernel_size,reduction,act)
-        
+
         # RGB mean for DIV2K 1-800
         # rgb_mean = (0.4488, 0.4371, 0.4040)
-        # rgb_std = (1.0, 1.0, 1.0)    
+        # rgb_std = (1.0, 1.0, 1.0)
         # self.sub_mean = MeanShift(args.rgb_range, rgb_mean, rgb_std)
-        
+
         # define head module
         modules_head = [conv(opt.nch_in, n_feats, kernel_size)]
-        
+
         # define body module
         modules_body_nl_low = [
             _NLResGroup(
@@ -880,7 +875,7 @@ class RNAN(nn.Module):
                 conv, n_feats, kernel_size, act=act, res_scale=1)]
         modules_body.append(conv(n_feats, n_feats, kernel_size))
 
-        # define tail module       
+        # define tail module
         modules_tail = [
             Upsampler(conv, opt.scale, n_feats, act=False),
             conv(n_feats, opt.nch_out, kernel_size)]
@@ -907,7 +902,7 @@ class RNAN(nn.Module):
 
         # res_main = self.add_mean(res_main)
 
-        return res_main  
+        return res_main
 
 
 
@@ -925,7 +920,7 @@ class FourierNet(nn.Module):
     def __init__(self):
         super(FourierNet, self).__init__()
         self.inp = nn.Linear(85*85*9,85*85)
-    
+
 
     def forward(self, x):
         x = x.view(-1,85*85*9)
@@ -939,8 +934,8 @@ class FourierConvNet(nn.Module):
 
     def __init__(self):
         super(FourierConvNet, self).__init__()
-        
-        
+
+
         # self.inp = nn.Conv2d(18,32,3, stride=1, padding=1)
         # self.lay1 = nn.Conv2d(32,32,3, stride=1, padding=1)
         # self.lay2 = nn.Conv2d(32,32,3, stride=1, padding=1)
@@ -950,7 +945,7 @@ class FourierConvNet(nn.Module):
         # self.out = nn.Conv2d(32,1,3, stride=1, padding=1)
 
         # self.labels = nn.Linear(4096,18)
-        
+
         self.inc = inconv(18, 64)
         self.down1 = down(64, 128)
         self.down2 = down(128, 256)
@@ -965,7 +960,7 @@ class FourierConvNet(nn.Module):
 
     def forward(self, x):
         # x = self.inp(x)
-        
+
         # x = torch.rfft(x,2,onesided=False)
         # # x = torch.log( torch.abs(x) + 1 )
 
@@ -973,12 +968,12 @@ class FourierConvNet(nn.Module):
         # x = x.contiguous().view(-1,18,256,256)
 
         # x = F.relu(self.inp(x))
-        
+
         # x = self.pool(x) # to 128
         # x = F.relu(self.lay2(x))
         # x = self.pool(x) # to 64
         # x = F.relu(self.lay3(x))
-        
+
         # x = self.out(x)
 
         # x = x.view(-1,4096)
@@ -1013,7 +1008,7 @@ class FourierConvNet(nn.Module):
         # self.up2 = up(512, 128)
         # self.up3 = up(256, 64)
         # self.up4 = up(128, 64)
-        
+
         # if opt.task == 'segment':
         #     self.outc = outconv(64, 2)
         # else:
@@ -1097,7 +1092,7 @@ class Generator(nn.Module):
             self.normalize, self.unnormalize = normalizationTransforms(opt.norm)
         else:
             self.normalize, self.unnormalize = None, None
-        
+
 
         for i in range(self.n_residual_blocks):
             self.add_module('residual_block' + str(i+1), residualBlock())
@@ -1130,7 +1125,7 @@ class Generator(nn.Module):
         #     x = self.__getattr__('upsample' + str(i+1))(x)
 
         x = self.conv3(x)
-        
+
         if not self.unnormalize == None:
             x = self.unnormalize(x)
 
@@ -1171,7 +1166,7 @@ class Discriminator(nn.Module):
         x = swish(self.bn8(self.conv8(x)))
 
         x = self.conv9(x)
-        return torch.sigmoid(F.avg_pool2d(x, x.size()[2:])).view(x.size()[0], -1)        
+        return torch.sigmoid(F.avg_pool2d(x, x.size()[2:])).view(x.size()[0], -1)
 
 
 
@@ -1345,15 +1340,15 @@ class up(nn.Module):
 
     def forward(self, x1, x2):
         x1 = self.up(x1)
-        
+
         # input is CHW
         diffY = x2.size()[2] - x1.size()[2]
         diffX = x2.size()[3] - x1.size()[3]
 
         x1 = F.pad(x1, (diffX // 2, diffX - diffX//2,
                         diffY // 2, diffY - diffY//2))
-        
-        # for padding issues, see 
+
+        # for padding issues, see
         # https://github.com/HaiyongJiang/U-Net-Pytorch-Unstructured-Buggy/commit/0e854509c2cea854e247a9c615f175f76fbb2e3a
         # https://github.com/xiaopeng-liao/Pytorch-UNet/commit/8ebac70e633bac59fc22bb5195e513d5832fb3bd
 
@@ -1384,7 +1379,7 @@ class UNet(nn.Module):
         self.up2 = up(512, 128)
         self.up3 = up(256, 64)
         self.up4 = up(128, 64)
-        
+
         if opt.task == 'segment':
             self.outc = outconv(64, opt.nch_out)
         else:
@@ -1457,7 +1452,7 @@ class UNetRep(nn.Module):
         self.down2 = down(128, 128)
         self.up1 = up1(256, 128, 128)
         self.up2 = up1(192, 64, 128)
-        
+
         self.outc = outconv(64, n_classes)
 
     def forward(self, x):
@@ -1482,7 +1477,7 @@ class UNetRep(nn.Module):
 
 
 # ------------------- UNet Noise2noise implementation
- 
+
 class single_conv(nn.Module):
     '''(conv => BN => ReLU) * 2'''
     def __init__(self, in_ch, out_ch):
@@ -1523,21 +1518,21 @@ class up1(nn.Module):
 
     def forward(self, x1, x2):
         x1 = self.up(x1)
-        
+
         # input is CHW
         diffY = x2.size()[2] - x1.size()[2]
         diffX = x2.size()[3] - x1.size()[3]
 
         x1 = F.pad(x1, (diffX // 2, diffX - diffX//2,
                         diffY // 2, diffY - diffY//2))
-        
-        # for padding issues, see 
+
+        # for padding issues, see
         # https://github.com/HaiyongJiang/U-Net-Pytorch-Unstructured-Buggy/commit/0e854509c2cea854e247a9c615f175f76fbb2e3a
         # https://github.com/xiaopeng-liao/Pytorch-UNet/commit/8ebac70e633bac59fc22bb5195e513d5832fb3bd
 
         x = torch.cat([x2, x1], dim=1)
         x = self.conv(x)
-        return x        
+        return x
 
 class up2(nn.Module):
     def __init__(self, in_ch, in_ch2, out_ch,out_ch2,convtr, bilinear=False):
@@ -1557,15 +1552,15 @@ class up2(nn.Module):
 
     def forward(self, x1, x2):
         x1 = self.up(x1)
-        
+
         # input is CHW
         diffY = x2.size()[2] - x1.size()[2]
         diffX = x2.size()[3] - x1.size()[3]
 
         x1 = F.pad(x1, (diffX // 2, diffX - diffX//2,
                         diffY // 2, diffY - diffY//2))
-        
-        # for padding issues, see 
+
+        # for padding issues, see
         # https://github.com/HaiyongJiang/U-Net-Pytorch-Unstructured-Buggy/commit/0e854509c2cea854e247a9c615f175f76fbb2e3a
         # https://github.com/xiaopeng-liao/Pytorch-UNet/commit/8ebac70e633bac59fc22bb5195e513d5832fb3bd
         x = torch.cat([x2, x1], dim=1)
@@ -1616,7 +1611,7 @@ class UNetGreedy(nn.Module):
         x = self.up4(x, x2)
         x = self.up5(x, x0)
         x = self.outc(x)
-        return F.sigmoid(x)        
+        return F.sigmoid(x)
 
 
 class UNet2(nn.Module):
@@ -1648,7 +1643,7 @@ class UNet2(nn.Module):
         x = self.up4(x, x2)
         x = self.up5(x, x0)
         x = self.outc(x)
-        return F.sigmoid(x)        
+        return F.sigmoid(x)
 
 
 class MLPNet(nn.Module):
@@ -1694,7 +1689,7 @@ class MLPNet(nn.Module):
         x = self.fc(x)
         # x = F.relu(self.fc1(x))
         # x = F.relu(self.fc2(x))
-        return x        
+        return x
 
 
 
@@ -1818,7 +1813,7 @@ class IntermediateDnCNN(nn.Module):
 		elif self.input_features == 15:
 			self.output_features = 12 #RGB image
 		else:
-			self.output_features = 3            
+			self.output_features = 3
 			# raise Exception('Invalid number of input features')
 
 
@@ -2107,7 +2102,7 @@ class CSAM_Module(nn.Module):
         m_batchsize, C, height, width = x.size()
         out = x.unsqueeze(1)
         out = self.sigmoid(self.conv(out))
-        
+
         # proj_query = x.view(m_batchsize, N, -1)
         # proj_key = x.view(m_batchsize, N, -1).permute(0, 2, 1)
         # energy = torch.bmm(proj_query, proj_key)
@@ -2128,15 +2123,15 @@ class CSAM_Module(nn.Module):
 class HAN(nn.Module):
     def __init__(self, opt, conv=conv):
         super(HAN, self).__init__()
-        
+
         n_resgroups = opt.n_resgroups
         n_resblocks = opt.n_resblocks
         n_feats = opt.n_feats
         kernel_size = 3
-        reduction = opt.reduction 
+        reduction = opt.reduction
         scale = opt.scale
         act = nn.ReLU(True)
-        
+
         if not opt.norm == None:
             self.normalize, self.unnormalize = normalizationTransforms(opt.norm)
         else:
@@ -2201,7 +2196,7 @@ class HAN(nn.Module):
         out1 = self.csa(out1)
         out = torch.cat([out1, out2], 1)
         res = self.last(out)
-        
+
         res += x
         #res = self.csa(res)
 
@@ -2210,7 +2205,7 @@ class HAN(nn.Module):
         if not self.unnormalize == None:
             x = self.unnormalize(x)
 
-        return x 
+        return x
 
     def load_state_dict(self, state_dict, strict=False):
         own_state = self.state_dict()
