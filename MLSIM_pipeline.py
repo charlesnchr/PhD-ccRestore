@@ -198,7 +198,11 @@ if __name__ == '__main__':
             folders = glob.glob("%s/*" % opt.sourceimages_path)
             for folder in folders:
                 subfolders = glob.glob("%s/*" % folder)
-                files.extend(subfolders)
+                if len(subfolders) > 0:
+                    if subfolders[0].endswith(('.jpg','.png')):
+                        files.extend(folders)
+                        break
+                    files.extend(subfolders)
 
         if len(files) == 0:
             print('source images not found')
@@ -211,6 +215,9 @@ if __name__ == '__main__':
             sys.exit(0)
 
         files = files[:math.ceil( (opt.ntrain + opt.ntest) / opt.nrep )]
+
+        for file in files:
+            print(file)
 
         with Pool(opt.datagen_workers) as p:
             if not opt.seqSIM:
