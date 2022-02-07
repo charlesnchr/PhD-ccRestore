@@ -37,8 +37,8 @@ normalize2 = transforms.Normalize(mean = [0.69747254,0.53480325,0.68800158], std
 unnormalize2 = transforms.Normalize(mean = [-2.9547, -1.9198, -3.20643], std = [4.2363, 3.58972, 4.66049])
 
 
-toTensor = transforms.ToTensor()  
-toPIL = transforms.ToPILImage()      
+toTensor = transforms.ToTensor()
+toPIL = transforms.ToPILImage()
 
 
 def GetDataloaders(opt):
@@ -54,42 +54,42 @@ def GetDataloaders(opt):
     elif opt.dataset.lower() == 'div2k_raw':
         dataloader = load_DIV2K_dataset(opt.root + '/DIV2K','train',opt)
         validloader = load_DIV2K_dataset(opt.rootValidation + '/DIV2K','valid',opt)
-    elif opt.dataset.lower() == 'pcam': 
+    elif opt.dataset.lower() == 'pcam':
         dataloader = load_HDF5_dataset(opt.root + '/camelyonpatch_level_2_split_valid_x.h5','train',opt)
         validloader = load_HDF5_dataset(opt.rootValidation + '/camelyonpatch_level_2_split_valid_x.h5','valid',opt)
-    elif opt.dataset.lower() == 'imagedataset': 
+    elif opt.dataset.lower() == 'imagedataset':
         dataloader = load_image_dataset(opt.root,'train',opt)
         validloader = load_image_dataset(opt.rootValidation,'valid',opt)
-    elif opt.dataset.lower() == 'imageclassdataset': 
+    elif opt.dataset.lower() == 'imageclassdataset':
         dataloader = load_imageclass_dataset(opt.root,'train',opt)
         validloader = load_imageclass_dataset(opt.rootValidation,'valid',opt)
-    elif opt.dataset.lower() == 'doubleimagedataset': 
+    elif opt.dataset.lower() == 'doubleimagedataset':
         dataloader = load_doubleimage_dataset(opt.root,'train',opt)
         validloader = load_doubleimage_dataset(opt.rootValidation,'valid',opt)
-    elif opt.dataset.lower() == 'pickledataset': 
+    elif opt.dataset.lower() == 'pickledataset':
         dataloader = load_GenericPickle_dataset(opt.root,'train',opt)
         validloader = load_GenericPickle_dataset(opt.rootValidation,'valid',opt)
-    elif opt.dataset.lower() == 'sim': 
+    elif opt.dataset.lower() == 'sim':
         dataloader = load_SIM_dataset(opt.root,'train',opt)
         validloader = load_SIM_dataset(opt.rootValidation,'valid',opt)
-    elif opt.dataset.lower() == 'realsim': 
+    elif opt.dataset.lower() == 'realsim':
         dataloader = load_real_SIM_dataset(opt.root,'train',opt)
-        validloader = load_real_SIM_dataset(opt.rootValidation,'valid',opt)        
-    elif opt.dataset.lower() == 'fouriersim': 
+        validloader = load_real_SIM_dataset(opt.rootValidation,'valid',opt)
+    elif opt.dataset.lower() == 'fouriersim':
         dataloader = load_fourier_SIM_dataset(opt.root,'train',opt)
-        validloader = load_fourier_SIM_dataset(opt.rootValidation,'valid',opt)                
-    elif opt.dataset.lower() == 'fourierfreqsim': 
+        validloader = load_fourier_SIM_dataset(opt.rootValidation,'valid',opt)
+    elif opt.dataset.lower() == 'fourierfreqsim':
         dataloader = load_freq_fourier_SIM_dataset(opt.root,'train',opt)
         validloader = load_freq_fourier_SIM_dataset(opt.rootValidation,'valid',opt)
-    elif opt.dataset.lower() == 'ntiredenoising': 
+    elif opt.dataset.lower() == 'ntiredenoising':
         dataloader = load_NTIREDenoising_dataset(opt.root,'train',opt)
-        validloader = load_NTIREDenoising_dataset(opt.rootValidation,'valid',opt)                
-    elif opt.dataset.lower() == 'ntireestimatenl': 
+        validloader = load_NTIREDenoising_dataset(opt.rootValidation,'valid',opt)
+    elif opt.dataset.lower() == 'ntireestimatenl':
         dataloader = load_EstimateNL_dataset(opt.root,'train',opt)
-        validloader = load_EstimateNL_dataset(opt.rootValidation,'valid',opt)                
+        validloader = load_EstimateNL_dataset(opt.rootValidation,'valid',opt)
     elif opt.dataset.lower() == 'er':
         dataloader = load_ER_dataset(opt.root,category='train',batchSize=opt.batchSize,num_workers=opt.workers)
-        validloader = load_ER_dataset(opt.rootValidation,category='valid',shuffle=False,batchSize=opt.batchSize,num_workers=0)        
+        validloader = load_ER_dataset(opt.rootValidation,category='valid',shuffle=False,batchSize=opt.batchSize,num_workers=0)
     else:
         print('unknown dataset')
         return None,None
@@ -111,7 +111,7 @@ class ImageDataset(Dataset):
         self.imageSize = opt.imageSize
         self.scale = opt.scale
         self.len = len(self.images)
-        
+
     def __getitem__(self, index):
         with open(self.images[index], 'rb') as f:
             hr = Image.open(f)
@@ -128,7 +128,7 @@ class ImageDataset(Dataset):
 
 
 def load_image_dataset(root,category,opt):
-        
+
     dataset = ImageDataset(root, category, opt)
     if category == 'train':
         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
@@ -142,7 +142,7 @@ class ImageClassDataset(Dataset):
 
     def __init__(self, root, category, opt):
         self.images = glob.glob(root + '/**/*.*', recursive=True)
-        
+
         # filter zero classes out
         newimages = []
         for img in self.images:
@@ -164,7 +164,7 @@ class ImageClassDataset(Dataset):
         self.nch_in = opt.nch_in
         self.scale = opt.scale
         self.len = len(self.images)
-        
+
     def __getitem__(self, index):
         stack = io.imread(self.images[index])
         stack[:,:,0] = stack[:,:,1]
@@ -174,7 +174,7 @@ class ImageClassDataset(Dataset):
 
         # for i in range(self.nch_in):
         #     stack[i] = (stack[i] - np.min(stack[i])) / (np.max(stack[i]) - np.min(stack[i]))
-        
+
         stack = torch.tensor(stack).float().permute(2,0,1)
 
         label = os.path.basename(self.images[index])
@@ -194,7 +194,7 @@ class ImageClassDataset(Dataset):
         #     label = 1
         # else:
         #     label = 2 # pandas
-            
+
 
         return stack, label
 
@@ -203,7 +203,7 @@ class ImageClassDataset(Dataset):
 
 
 def load_imageclass_dataset(root,category,opt):
-        
+
     dataset = ImageClassDataset(root, category, opt)
     if category == 'train':
         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
@@ -238,7 +238,7 @@ class DoubleImageDataset(Dataset):
         self.scale = opt.scale
         self.nch_in = opt.nch_in
         self.len = len(self.lq)
-        
+
     def __getitem__(self, index):
         with open(self.lq[index], 'rb') as f:
             img = Image.open(f)
@@ -250,7 +250,7 @@ class DoubleImageDataset(Dataset):
             img = np.array(img)
             img = (img - np.min(img)) / (np.max(img) - np.min(img))
             hq = Image.fromarray(img)
-        
+
         # random crop
         w,h = lq.size
         ix = random.randrange(0,w-self.imageSize+1)
@@ -260,7 +260,7 @@ class DoubleImageDataset(Dataset):
         hq = hq.crop((ix,iy,ix+self.imageSize,iy+self.imageSize))
 
         lq, hq = toTensor(lq), toTensor(hq)
-        
+
         # rotate and flip?
         if random.random() > 0.5:
             lq = lq.permute(0, 2, 1)
@@ -271,11 +271,11 @@ class DoubleImageDataset(Dataset):
         if random.random() > 0.5:
             lq = torch.flip(lq, [2])
             hq = torch.flip(hq, [2])
-                
+
         if self.nch_in == 1:
             lq = torch.mean(lq,0,keepdim=True)
             hq = torch.mean(hq,0,keepdim=True)
-        
+
         return lq,hq,hq
 
     def __len__(self):
@@ -283,7 +283,7 @@ class DoubleImageDataset(Dataset):
 
 
 def load_doubleimage_dataset(root,category,opt):
-        
+
     dataset = DoubleImageDataset(root, category, opt)
     if category == 'train':
         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
@@ -300,23 +300,23 @@ def load_doubleimage_dataset(root,category,opt):
 #         p = 1
 #         tp = patch_size
 #         ip = tp // scale
-        
+
 #         ix = random.randrange(0, iw - ip + 1)
 #         iy = random.randrange(0, ih - ip + 1)
-        
-        
+
+
 #         tx, ty = scale * ix, scale * iy
-        
+
 #         # lr = transforms.functional.crop(lr, iy, ix, ip, ip)
 #         # hr = transforms.functional.crop(hr, ty, tx, tp, tp)
 #         lr = lr.crop((ix,iy,ix+ip,iy+ip))
 #         hr = hr.crop((tx,ty,tx+tp,ty+tp))
-        
+
 #     #     return [
 #     #         lr[:,iy:iy + ip, ix:ix + ip],
 #     #         hr[:,ty:ty + tp, tx:tx + tp]
 #     #     ]
-#         return lr, hr    
+#         return lr, hr
 
 
 #     def __init__(self, root, category, opt):
@@ -335,7 +335,7 @@ def load_doubleimage_dataset(root,category,opt):
 #         with open(self.LRimages[index], 'rb') as f:
 #             lr = Image.open(f)
 #             lr = lr.convert('RGB')
-        
+
 #         lr, hr = self.get_patch(lr,hr,self.imageSize*4, self.scale)
 #         return toTensor(lr), toTensor(hr)
 
@@ -344,7 +344,7 @@ def load_doubleimage_dataset(root,category,opt):
 
 
 # class DIV2KDataset(Dataset):
-    
+
 #     def __init__(self, root, category, opt):
 #         self.images = glob.glob(root + '/DIV2K_' + category + '_HR/*')
 
@@ -361,7 +361,7 @@ def load_doubleimage_dataset(root,category,opt):
 #         with open(self.images[index], 'rb') as f:
 #             hr = Image.open(f)
 #             hr = hr.convert('RGB')
-        
+
 #         hr = self.croptransform(hr)
 
 #         # rotate and flip?
@@ -384,10 +384,10 @@ def load_doubleimage_dataset(root,category,opt):
 #         return lr, hr
 
 #     def __len__(self):
-#         return self.len        
+#         return self.len
 
 # def load_DIV2K_dataset(root,category,opt):
-        
+
 #     dataset = DIV2KDataset(root, category, opt)
 #     if category == 'train':
 #         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
@@ -401,7 +401,7 @@ class DIV2KDataset(Dataset):
     def __init__(self, root, category,opt): # highres images not currently scaled, optdefault
         # fid = open(root + '/DIV2K_' + category + '_HR_%dx%d.pkl' % (imageSize,imageSize),'rb')
         # self.images = glob.glob(root + '/DIV2K_' + category + '_HR_bins%dx%d/*' % (opt.imageSize,opt.imageSize))
-        
+
         # self.lqimg = glob.glob(root + '/*in.png')
         self.hqimg = glob.glob(root + '/*gt.png')
 
@@ -430,11 +430,11 @@ class DIV2KDataset(Dataset):
         # lq, hq = toTensor(lq), toTensor(hq)
 
         hq = Image.open(self.hqimg[index])
-        
+
         hq = hq.resize((self.scale*self.imageSize,self.scale*self.imageSize),Image.BICUBIC)
         lq = hq.resize((self.imageSize,self.imageSize),Image.BICUBIC)
         lq, hq = toTensor(lq), toTensor(hq)
-        
+
         # rotate and flip?
         if random.random() > 0.5:
             lq = lq.permute(0, 2, 1)
@@ -446,17 +446,17 @@ class DIV2KDataset(Dataset):
             lq = torch.flip(lq, [2])
             hq = torch.flip(hq, [2])
 
-            
+
         return lq, hq # hq, lq, lq
 
     def __len__(self):
-        return self.len       
+        return self.len
 
 
 def load_DIV2K_dataset(root, category,opt):
 
     dataset = DIV2KDataset(root, category, opt)
-        
+
     if category == 'train':
         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
     else:
@@ -471,7 +471,7 @@ class HDF5Dataset(Dataset):
     from noise import noisy
 
     def __init__(self, root, category, opt): # highres images not currently scaled, optdefault
-        import h5py 
+        import h5py
         h5_file = h5py.File(root)
 
         if category == 'train':
@@ -480,9 +480,9 @@ class HDF5Dataset(Dataset):
             self.data = h5_file.get('x')[-opt.ntest:]
 
         # self.trans = transforms.Compose([transforms.ToPILImage(),transforms.Resize(opt.imageSize),transforms.ToTensor()])
-                
+
         self.len = len(self.data)
-        
+
         if len(opt.noise) > 0:
             self.poisson = [float(opt.noise.split(',')[0])]
             self.gaussian = [0,float(opt.noise.split(',')[1])]
@@ -496,16 +496,16 @@ class HDF5Dataset(Dataset):
         # lr = self.trans(arr)
 
         lr = hr.astype('float32') / 255.0
-        lr = noisy('poisson',lr,self.poisson).clip(0,1) 
-        lr = noisy('gauss',lr,self.gaussian).clip(0,1) 
+        lr = noisy('poisson',lr,self.poisson).clip(0,1)
+        lr = noisy('gauss',lr,self.gaussian).clip(0,1)
 
         lr = toTensor(lr).float()
         hr = toTensor(hr).float()
-        
+
         return lr, hr # hr, lr
 
     def __len__(self):
-        return self.len        
+        return self.len
 
 
 def load_HDF5_dataset(root, category,opt):
@@ -516,7 +516,7 @@ def load_HDF5_dataset(root, category,opt):
     else:
         dataloader = DataLoader(dataset, batch_size=opt.batchSize_test, shuffle=False, num_workers=0)
     return dataloader
-    
+
 
 
 
@@ -528,7 +528,7 @@ class PickleDataset(Dataset):
         self.images = glob.glob(root + '/DIV2K_' + category + '_HR_bins%dx%d/*' % (opt.imageSize,opt.imageSize))
 
         self.trans = transforms.Compose([transforms.ToPILImage(),transforms.Resize(opt.imageSize),transforms.ToTensor()])
-                
+
         self.len = len(self.images)
 
     def __getitem__(self, index):
@@ -542,11 +542,11 @@ class PickleDataset(Dataset):
             hr = torch.flip(hr, [1])
 
         lr = self.trans(hr)
-        
+
         return lr, hr
 
     def __len__(self):
-        return self.len        
+        return self.len
 
 
 def load_Pickle_dataset(root, category,opt):
@@ -566,7 +566,7 @@ class GenericPickleDataset(Dataset):
     def __init__(self, root, category,opt): # highres images not currently scaled, optdefault
         # fid = open(root + '/DIV2K_' + category + '_HR_%dx%d.pkl' % (imageSize,imageSize),'rb')
         # self.images = glob.glob(root + '/DIV2K_' + category + '_HR_bins%dx%d/*' % (opt.imageSize,opt.imageSize))
-        
+
         self.images = glob.glob(root + '/*.npy')
 
         random.seed(1234)
@@ -578,7 +578,7 @@ class GenericPickleDataset(Dataset):
             self.images = self.images[-opt.ntest:]
 
         self.trans = transforms.Compose([transforms.ToPILImage(),transforms.Resize(opt.imageSize),transforms.ToTensor()])
-        
+
         self.scale = opt.scale
         self.nch = opt.nch_in
         self.len = len(self.images)
@@ -609,12 +609,12 @@ class GenericPickleDataset(Dataset):
             elif len(inputTuple) == 4: ## assuming time sequence of 3 adjacent frames for input
                 lq, hq = inputTuple[1], inputTuple[3]
                 lq, hq = toTensor(lq).float(), toTensor(hq).float()
-            
+
             # multi-image input?
             # if lq.shape[0] > self.nch:
             #     lq = lq[lq.shape[0] // 2].unsqueeze(0)
             #     hq = hq[hq.shape[0] // 2].unsqueeze(0)
-            
+
             # rotate and flip?
             if self.category == 'train':
                 if random.random() > 0.5:
@@ -627,13 +627,13 @@ class GenericPickleDataset(Dataset):
                     lq = torch.flip(lq, [2])
                     hq = torch.flip(hq, [2])
 
-            
+
             return lq, hq # hq, lq, lq
         elif self.nch == 3:
             img_in_pre,img_in,img_in_pos, img_gt = np.load(self.images[index],allow_pickle=True)
             img_in_pre,img_in,img_in_pos, hq = toTensor(img_in_pre).float(),toTensor(img_in).float(),toTensor(img_in_pos).float(), toTensor(img_gt).float()
             lq = torch.cat((img_in_pre,img_in,img_in_pos), 0)
-            
+
             # rotate and flip?
             if self.category == 'train':
                 if random.random() > 0.5:
@@ -645,20 +645,20 @@ class GenericPickleDataset(Dataset):
                 if random.random() > 0.5:
                     lq = torch.flip(lq, [2])
                     hq = torch.flip(hq, [2])
-                                
+
             return lq, hq
 
         else:
             print('datahandler error')
 
     def __len__(self):
-        return self.len       
+        return self.len
 
 
 def load_GenericPickle_dataset(root, category,opt):
 
     dataset = GenericPickleDataset(root, category, opt)
-        
+
     if category == 'train':
         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
     else:
@@ -674,7 +674,7 @@ class SIM_dataset(Dataset):
         mat = scipy.io.loadmat(root)
         xdim,ydim,nsamples = mat['simdata'].shape
 
-        self.inputimages = mat['inputdata'].transpose(3,0,1,2) 
+        self.inputimages = mat['inputdata'].transpose(3,0,1,2)
         self.targetimages = mat['simdata'].reshape(xdim,ydim,1,nsamples).transpose(3,0,1,2) # no channels by default
         self.gtimages = mat['gtdata'].reshape(xdim,ydim,1,nsamples).transpose(3,0,1,2) # no channels by default
 
@@ -687,7 +687,7 @@ class SIM_dataset(Dataset):
             self.targetimages = self.targetimages[-10:]
             self.gtimages = self.gtimages[-10:]
 
-        if opt.nch_in == 1: 
+        if opt.nch_in == 1:
             self.widefield = True
         else:
             self.widefield = False
@@ -711,7 +711,7 @@ class SIM_dataset(Dataset):
         #     inputimg[:,:,i] = np.log(np.abs(np.fft.fftshift(np.fft.fft2(inputimg[:,:,i])))+1)
         #     inputimg[:,:,i] = (inputimg[:,:,i]) / (np.max(inputimg[:,:,i]))
         # inputimg = torch.tensor(inputimg).permute(2,0,1).float()
-        
+
         inputimg = inputimg.astype(float) / 255.0
         f = np.fft.fftshift(np.fft.fft2(inputimg))
 
@@ -731,7 +731,7 @@ class SIM_dataset(Dataset):
 
         # should learn this:
         # frec = (frp - frm) + 1i*(fcp - fcm)
-        # frec = ifft2(fftshift(frec))  
+        # frec = ifft2(fftshift(frec))
         #   i.e.:
         # inputimg = (frp - frm) + 1j*(fcp - fcm)
         # inputimg = (np.fft.ifft2(np.fft.fftshift(inputimg))).astype(np.float)
@@ -747,11 +747,11 @@ class SIM_dataset(Dataset):
         # inputimg = torch.tensor(inputimg).permute(2,0,1).float() / 255.0
         targetimg = torch.tensor(targetimg).permute(2,0,1).float() / 255.0
         gtimg = torch.tensor(gtimg).permute(2,0,1).float() / 255.0
-        
+
 
         # inputimg = toTensor(inputimg)
         # targetimg = toTensor(targetimg)
-        # gtimg = toTensor(gtimg) 
+        # gtimg = toTensor(gtimg)
 
         if self.widefield:
             inputimg = torch.mean(inputimg,0).unsqueeze(0) # widefield
@@ -759,7 +759,7 @@ class SIM_dataset(Dataset):
         return inputimg,targetimg,targetimg#targetimg
 
     def __len__(self):
-        return self.len        
+        return self.len
 
 def load_SIM_dataset(root, category,opt):
 
@@ -785,7 +785,7 @@ class real_SIM_dataset(Dataset):
             else:
                 self.imagestacks.extend(images[-1:])
 
-        if opt.nch_in == 1: 
+        if opt.nch_in == 1:
             self.widefield = True
         else:
             self.widefield = False
@@ -794,12 +794,12 @@ class real_SIM_dataset(Dataset):
 
     def __getitem__(self, index):
         mat = np.load(self.imagestacks[index])
-        
+
         inputimg = mat[:,:,:-4]
 
         # target has same dimensions
         # targetimg = mat[:,:,-1].reshape(mat.shape[0],mat.shape[1],1)  # no channels by default
-        
+
         toprow = np.hstack((mat[:,:,-4],mat[:,:,-2]))
         botrow = np.hstack((mat[:,:,-3],mat[:,:,-1]))
         targetimg = np.vstack((toprow,botrow)).reshape(2*mat.shape[0],2*mat.shape[1],1)
@@ -829,7 +829,7 @@ class real_SIM_dataset(Dataset):
         return inputimg,targetimg,targetimg
 
     def __len__(self):
-        return self.len        
+        return self.len
 
 def load_real_SIM_dataset(root, category,opt):
 
@@ -838,7 +838,7 @@ def load_real_SIM_dataset(root, category,opt):
         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
     else:
         dataloader = DataLoader(dataset, batch_size=opt.batchSize_test, shuffle=False, num_workers=0)
-    return dataloader    
+    return dataloader
 
 
 
@@ -874,7 +874,7 @@ class Fourier_SIM_dataset(Dataset):
         self.imageSize = opt.imageSize
 
     def __getitem__(self, index):
-        
+
         stack = io.imread(self.images[index])
 
         if len(stack.shape) > 3:
@@ -897,7 +897,7 @@ class Fourier_SIM_dataset(Dataset):
         elif 'last' in self.task and self.nch_in == 1: # don't do it if widefield input is expected
             inputimg = stack[[8]] # used for sequential SIM - first tests from 20201215 have GT as 9th frame
         elif 'wfin' in self.task:
-            inputimg = stack[:9] 
+            inputimg = stack[:9]
         else:
             inputimg = stack[:self.nch_in]
 
@@ -962,7 +962,7 @@ class Fourier_SIM_dataset(Dataset):
             simimg = simimg.astype('float') / np.max(simimg)
         else:
             simimg = np.mean(inputimg,0) # same as widefield
-        
+
         if self.norm == 'adapthist':
             for i in range(len(inputimg)):
                 inputimg[i] = exposure.equalize_adapthist(inputimg[i],clip_limit=0.001)
@@ -982,7 +982,7 @@ class Fourier_SIM_dataset(Dataset):
             widefield = torch.tensor(widefield).unsqueeze(0).float()
             simimg = torch.tensor(simimg).unsqueeze(0).float()
 
-            # normalise 
+            # normalise
             gt = (gt - torch.min(gt)) / (torch.max(gt) - torch.min(gt))
             simimg = (simimg - torch.min(simimg)) / (torch.max(simimg) - torch.min(simimg))
             widefield = (widefield - torch.min(widefield)) / (torch.max(widefield) - torch.min(widefield))
@@ -994,7 +994,7 @@ class Fourier_SIM_dataset(Dataset):
                 fac = float(self.norm[6:])
                 for i in range(len(inputimg)):
                     inputimg[i] = fac * (inputimg[i] - torch.min(inputimg[i])) / (torch.max(inputimg[i]) - torch.min(inputimg[i]))
-        
+
 
         if 'simin_simout' in self.task:
             return inputimg,simimg,gt,widefield,self.images[index]   # sim input, sim output
@@ -1008,7 +1008,7 @@ class Fourier_SIM_dataset(Dataset):
 
 
     def __len__(self):
-        return self.len        
+        return self.len
 
 def load_fourier_SIM_dataset(root, category,opt):
 
@@ -1017,12 +1017,12 @@ def load_fourier_SIM_dataset(root, category,opt):
         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
     else:
         dataloader = DataLoader(dataset, batch_size=opt.batchSize_test, shuffle=False, num_workers=0)
-    return dataloader    
+    return dataloader
 
 
 
 
-    
+
 class NTIREDenoisingdataset(Dataset):
 
     def __init__(self, root, category, opt):
@@ -1050,10 +1050,10 @@ class NTIREDenoisingdataset(Dataset):
         self.scale = opt.scale
         self.nch_in = opt.nch_in
         self.len = len(self.images)
-        
+
     def __getitem__(self, index):
-        
-                
+
+
         lq, hq = pickle.load(open(self.images[index], 'rb'))
         lq, hq = toTensor(lq), toTensor(hq)
 
@@ -1067,7 +1067,7 @@ class NTIREDenoisingdataset(Dataset):
         if random.random() > 0.5:
             lq = torch.flip(lq, [2])
             hq = torch.flip(hq, [2])
-            
+
         return lq, hq
 
     def __len__(self):
@@ -1075,7 +1075,7 @@ class NTIREDenoisingdataset(Dataset):
 
 
 def load_NTIREDenoising_dataset(root,category,opt):
-        
+
     dataset = NTIREDenoisingdataset(root, category, opt)
     if category == 'train':
         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
@@ -1087,7 +1087,7 @@ def load_NTIREDenoising_dataset(root,category,opt):
 
 
 class EstimateNLdataset(Dataset):
-    
+
     def __init__(self, root, category, opt):
         # self.lq = glob.glob(root + '/**/*_NOISY_*.png', recursive=True)
         # self.hq = glob.glob(root + '/**/*_GT_*.png', recursive=True)
@@ -1113,9 +1113,9 @@ class EstimateNLdataset(Dataset):
         self.scale = opt.scale
         self.nch_in = opt.nch_in
         self.len = len(self.images)
-        
+
     def __getitem__(self, index):
-        
+
         # rotate and flip?
         # if random.random() > 0.5:
         #     lq = lq.permute(0, 2, 1)
@@ -1126,7 +1126,7 @@ class EstimateNLdataset(Dataset):
         # if random.random() > 0.5:
         #     lq = torch.flip(lq, [2])
         #     hq = torch.flip(hq, [2])
-                
+
         lq, hq = pickle.load(open(self.images[index], 'rb'))
         lq, hq = toTensor(lq), toTensor(hq)
 
@@ -1146,13 +1146,13 @@ class EstimateNLdataset(Dataset):
 
 
 def load_EstimateNL_dataset(root,category,opt):
-        
+
     dataset = EstimateNLdataset(root, category, opt)
     if category == 'train':
         dataloader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=opt.workers)
     else:
         dataloader = DataLoader(dataset, batch_size=opt.batchSize_test, shuffle=False, num_workers=0)
-    return dataloader    
+    return dataloader
 
 
 
@@ -1164,7 +1164,7 @@ def load_EstimateNL_dataset(root,category,opt):
 class ERdataset(Dataset):
 
     def __init__(self, root, category, opt): # highres images not currently scaled, just 96 by default
-        
+
         self.img = Image.open(root)
         self.img = np.array(self.img)
 
@@ -1191,7 +1191,7 @@ class ERdataset(Dataset):
         img = img.numpy() # use numpy again
 
         # normalize and add dimension
-        img = (img - np.min(img)) / (np.max(img) - np.min(img)) 
+        img = (img - np.min(img)) / (np.max(img) - np.min(img))
         img = np.expand_dims(img, 2)
 
         # gaussian darkness
@@ -1206,14 +1206,14 @@ class ERdataset(Dataset):
         noisyimg = (0.2*np.random.rand()+0.8)*noisyimg  # overall level between 0.5 and 0.1
         noisyimg = noisy('gauss',noisyimg,[0,0.002])
 
-        
+
         x = np.clip(noisyimg,0,1)
         x,y = toTensor(x.astype('float32')), toTensor(img.astype('float32'))
         return x,y
 
     def __len__(self):
-        return self.len           
-        
+        return self.len
+
 def load_ER_dataset(root, category,shuffle=True,batchSize=6,num_workers=0):
 
     dataset = ERdataset(root, category)

@@ -207,14 +207,16 @@ if __name__ == '__main__':
         if len(files) == 0:
             print('source images not found')
             sys.exit(0)
-        elif opt.ntrain + opt.ntest > opt.nrep*len(files):
+        elif opt.ntrain + opt.ntest > opt.nrep*len(files) and opt.ntrain + opt.ntest > 0:
             print('ntrain + opt.ntest is too high given nrep and number of source images')
             sys.exit(0)
         elif opt.nch_in > opt.Nangles*opt.Nshifts:
             print('nch_in cannot be greater than Nangles*Nshifts - not enough SIM frames')
             sys.exit(0)
 
-        files = files[:math.ceil( (opt.ntrain + opt.ntest) / opt.nrep )]
+
+        if opt.ntrain + opt.ntest > 0: # if == 0, use all
+            files = files[:math.ceil( (opt.ntrain + opt.ntest) / opt.nrep )]
 
         for file in files:
             print(file)

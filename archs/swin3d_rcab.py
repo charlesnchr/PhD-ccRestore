@@ -487,9 +487,10 @@ class RSTB3D(nn.Module):
                 downsample=None,
                 use_checkpoint=use_checkpoint)
 
-        self.resi_connection1 = nn.Conv2d(3, 64, 3, 1, 1)
+        patch_size_t = patch_size[0]
+        self.resi_connection1 = nn.Conv2d(patch_size_t, 64, 3, 1, 1)
         self.resi_connection2 = ResidualGroup(num_feat=64,squeeze_factor=16,num_block=12)
-        self.resi_connection3 = nn.Conv2d(64, 3, 3, 1, 1)
+        self.resi_connection3 = nn.Conv2d(64, patch_size_t, 3, 1, 1)
 
         # split image into non-overlapping patches
         self.patch_embed = PatchEmbed3D(
@@ -645,6 +646,8 @@ class PatchUnEmbed3D(nn.Module):
         super().__init__()
         self.patch_size = patch_size
 
+        self.patch_size_t = patch_size[0]
+
         self.in_chans = in_chans
         self.embed_dim = embed_dim
 
@@ -652,7 +655,7 @@ class PatchUnEmbed3D(nn.Module):
         self.unembed_dim = unembed_dim
 
         self.proj = nn.ConvTranspose3d(embed_dim, unembed_dim, kernel_size=patch_size, stride=patch_size)
-        self.conv = nn.Conv2d(3*unembed_dim, 3, 3, 1, 1)
+        self.conv = nn.Conv2d(self.patch_size_t*unembed_dim, self.patch_size_t, 3, 1, 1)
 
         if norm_layer is not None:
             self.norm = norm_layer(unembed_dim)
@@ -676,7 +679,7 @@ class PatchUnEmbed3D(nn.Module):
 
 
         x = self.lrelu(x)
-        x = x.view(-1,3*D,4*Wh,4*Ww)
+        x = x.view(-1,self.patch_size_t*D,4*Wh,4*Ww)
         # x = x.flatten(start_dim=1,end_dim=2)
         # x = x.view(-1,9,4*Wh,4*Ww) # 18 128 128
         x = self.lrelu(self.conv(x)) # 64 128 128
@@ -807,7 +810,8 @@ class SwinTransformer3D_RCAB(nn.Module):
         self.upsampler = Upsampler(embed_dim=embed_dim)
         self.task = opt.task
 
-        self.segmentation_decode = nn.Conv2d(3, 4, 1)
+        patch_size_t = patch_size[0]
+        self.segmentation_decode = nn.Conv2d(patch_size_t, 4, 1)
 
 
     def init_weights(self, pretrained=None):

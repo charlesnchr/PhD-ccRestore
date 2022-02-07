@@ -8,6 +8,7 @@ import torchvision.models as models
 import functools # used by RRDBNet
 import math
 from archs.swin3d_rcab import SwinTransformer3D_RCAB
+from archs.swinir_rcab import SwinIR_RCAB
 
 
 def GetModel(opt):
@@ -48,7 +49,7 @@ def GetModel(opt):
     elif opt.model.lower() == 'swin3d':
         net = SwinTransformer3D_RCAB(
             opt,
-            patch_size=(3,4,4),
+            patch_size=(1,4,4),
             in_chans=1,
             embed_dim=96,
             depths=[2, 2, 6, 2],
@@ -64,6 +65,14 @@ def GetModel(opt):
             patch_norm=True,
             upscale=1,
             frozen_stages=-1,
+            use_checkpoint=False,
+            vis=False)
+    elif opt.model.lower() == 'swinir_rcab':
+        net = SwinIR_RCAB(
+            opt,
+            img_size=opt.imageSize,
+            in_chans=1,
+            upscale=1,
             use_checkpoint=False,
             vis=False)
     elif opt.model.lower() == 'fourierconvnet':
