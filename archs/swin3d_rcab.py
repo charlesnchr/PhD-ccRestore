@@ -464,6 +464,7 @@ class RSTB3D(nn.Module):
                  in_chans=1,
                  patch_norm=True,
                  patch_size=(3,4,4),
+                 use_rcab=True,
                  use_checkpoint=False):
         super().__init__()
         self.window_size = window_size
@@ -488,8 +489,13 @@ class RSTB3D(nn.Module):
                 use_checkpoint=use_checkpoint)
 
         patch_size_t = patch_size[0]
+
+        self.use_rcab = use_rcab
+
         self.resi_connection1 = nn.Conv2d(patch_size_t, 64, 3, 1, 1)
-        self.resi_connection2 = ResidualGroup(num_feat=64,squeeze_factor=16,num_block=12)
+
+        if self.use_rcab:
+            self.resi_connection2 = ResidualGroup(num_feat=64,squeeze_factor=16,num_block=12)
         self.resi_connection3 = nn.Conv2d(64, patch_size_t, 3, 1, 1)
 
         # split image into non-overlapping patches
@@ -510,8 +516,9 @@ class RSTB3D(nn.Module):
         x = self.patch_unembed(x)
         x = self.resi_connection1(x)
         x = self.lrelu(x)
-        x = self.resi_connection2(x)
-        x = self.lrelu(x)
+        if self.use_rcab:
+            x = self.resi_connection2(x)
+            x = self.lrelu(x)
         x = self.resi_connection3(x)
         x = self.lrelu(x)
         x = self.patch_embed(x)
@@ -754,6 +761,7 @@ class SwinTransformer3D_RCAB(nn.Module):
                  upscale=2,
                  frozen_stages=-1,
                  use_checkpoint=False,
+                 use_rcab=True,
                  vis=False,
                  **kwargs):
         super().__init__()
@@ -799,6 +807,7 @@ class SwinTransformer3D_RCAB(nn.Module):
                 in_chans=in_chans,
                 patch_size=patch_size,
                 patch_norm=patch_norm,
+                use_rcab=use_rcab,
                 use_checkpoint=use_checkpoint)
             self.layers.append(layer)
 

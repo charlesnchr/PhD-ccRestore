@@ -280,11 +280,11 @@ def ESRGANtrain(opt, dataloader, validloader, generator):
             opt.writer.add_scalar('loss/mean_loss_pixel', mean_loss_pixel, epoch)
             opt.writer.add_scalar('data/time', t1, epoch)
             opt.writer.add_scalar('data/mem', mem, epoch)
-            
+
         # ---------------- TEST -----------------
         if (epoch + 1) % opt.testinterval == 0:
             testAndMakeCombinedPlots(net, validloader, opt, epoch)
-            
+
             if opt.testFunction is not None:
                 testfunctions.parse(net,opt, opt.testFunction, epoch)
             # if opt.scheduler:
@@ -423,7 +423,7 @@ def train(opt, dataloader, validloader, net):
                     #temp
                     loss_pix = loss_function(
                         sr, hr.cuda())
-                    
+
                     hr = hr.view(1,256,256)
                     dgm1,issub = layer(hr.float().cuda())
 
@@ -442,7 +442,7 @@ def train(opt, dataloader, validloader, net):
 
                     loss = loss_pix + loss_topo
 
-                    print('\nloss pix/topo %0.6f/%0.6f\n' % (loss_pix.data.item(),loss_topo.data.item()))                    
+                    print('\nloss pix/topo %0.6f/%0.6f\n' % (loss_pix.data.item(),loss_topo.data.item()))
                 else:
                     loss = loss_function(sr, hr.cuda())
 
@@ -471,7 +471,8 @@ def train(opt, dataloader, validloader, net):
             scheduler.step()
             for param_group in optimizer.param_groups:
                 print('\nLearning rate', param_group['lr'])
-                opt.wandb.log({'lr': param_group['lr']},step=epoch+1)
+                if not opt.disable_wandb:
+                    opt.wandb.log({'lr': param_group['lr']},step=epoch+1)
                 break
 
         # ---------------- Printing -----------------
@@ -480,7 +481,8 @@ def train(opt, dataloader, validloader, net):
         eta = (opt.nepoch - (epoch + 1)) * t1 / (epoch + 1)
         ostr = '\nEpoch [%d/%d] done, mean loss: %0.6f, time spent: %0.1fs, ETA: %0.1fs' % (
             epoch+1, opt.nepoch, mean_loss, t1, eta)
-        opt.wandb.log({'epoch':epoch+1,'mean_loss': mean_loss},step=epoch+1)
+        if not opt.disable_wandb:
+            opt.wandb.log({'epoch':epoch+1,'mean_loss': mean_loss},step=epoch+1)
         print(ostr)
         print(ostr, file=opt.fid)
         opt.fid.flush()
@@ -491,7 +493,7 @@ def train(opt, dataloader, validloader, net):
         # ---------------- TEST -----------------
         if (epoch + 1) % opt.testinterval == 0:
             testAndMakeCombinedPlots(net, validloader, opt, epoch)
-            
+
             if opt.testFunction is not None:
                 testfunctions.parse(net,opt, opt.testFunction, epoch)
             # if opt.scheduler:
@@ -512,26 +514,26 @@ def train(opt, dataloader, validloader, net):
     if len(opt.scheduler) > 0:
         checkpoint['scheduler'] = scheduler.state_dict()
     torch.save(checkpoint, opt.out + '/final.pth')
-    
+
 
 
 
 def main(opt):
-    
+
     try:
         submitCmd()
     except:
         print(traceback.format_exc())
 
     opt.device = torch.device('cuda' if torch.cuda.is_available() and not opt.cpu else 'cpu')
-    
+
     os.makedirs(opt.out,exist_ok=True)
     shutil.copy2('options.py',opt.out)
 
     opt.fid = open(opt.out + '/log.txt', 'w')
 
     ostr = 'ARGS: ' + ' '.join(sys.argv[:])
-    print(opt, '\n') 
+    print(opt, '\n')
     print(opt, '\n', file=opt.fid)
     print('\n%s\n' % ostr)
     print('\n%s\n' % ostr, file=opt.fid)
@@ -539,7 +541,7 @@ def main(opt):
 
     print('getting dataloader', opt.root)
     dataloader, validloader = GetDataloaders(opt)
-    
+
     if opt.log:
         # opt.writer = SummaryWriter(log_dir=opt.out, comment='_%s_%s' % (
         #     opt.out.replace('\\', '/').split('/')[-1], opt.model))
@@ -562,7 +564,7 @@ def main(opt):
         WGAN.train(opt, dataloader, validloader)
     else:
         net = GetModel(opt)
-    
+
     if not opt.test:
         # opt.wandb.watch(net, log_freq=100)
         train(opt, dataloader, validloader, net)
@@ -577,11 +579,11 @@ def main(opt):
             net.load_state_dict(checkpoint['state_dict'])
             print('time: %0.1f' % (time.perf_counter()-t0))
         testAndMakeCombinedPlots(net, validloader, opt)
-    
+
     opt.fid.close()
     if not opt.test:
         generate_convergence_plots(opt,opt.out + '/log.txt')
-    
+
 
     print('time: %0.1f' % (time.perf_counter()-t0))
 
@@ -590,8 +592,8 @@ def main(opt):
         print('deleting training data')
         # preserve a few samples
         os.makedirs('%s/training_data_subset' % opt.out, exist_ok=True)
-        
-        samplecount = 0 
+
+        samplecount = 0
         for file in glob.glob('%s/*' % opt.root):
             if os.path.isfile(file):
                 basename = os.path.basename(file)
@@ -600,18 +602,19 @@ def main(opt):
                 if samplecount == 10:
                     break
         shutil.rmtree(opt.root)
-    
-    if opt.cloud: 
+
+    if opt.cloud:
         print('uploading files')
         if opt.log:
             opt.train_stats.close()
             opt.test_stats.close()
-        cloudpush(opt)    
+        cloudpush(opt)
 
 
 if __name__ == '__main__':
     opt = options()
-    wandb.init(project="phd")
-    wandb.config.update(opt) 
-    opt.wandb = wandb
+    if not opt.disable_wandb:
+        wandb.init(project="phd")
+        wandb.config.update(opt)
+        opt.wandb = wandb
     main(opt)

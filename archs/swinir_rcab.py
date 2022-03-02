@@ -699,6 +699,7 @@ class RSTB(nn.Module):
                  use_checkpoint=False,
                  img_size=224,
                  patch_size=4,
+                 use_rcab=True,
                  resi_connection='1conv'):
         super(RSTB, self).__init__()
 
@@ -738,10 +739,12 @@ class RSTB(nn.Module):
                 # nn.Conv2d(dim // 4, dim // 4, 1, 1, 0), nn.LeakyReLU(negative_slope=0.2, inplace=True),
                 # nn.Conv2d(dim // 4, dim, 3, 1, 1))
 
+        self.use_rcab = use_rcab
 
         self.resi_connection1 = nn.Conv2d(dim, dim, 3, 1, 1)
-        self.resi_connection2 = ResidualGroup(num_feat=dim,squeeze_factor=16,num_block=12)
-        self.resi_connection3 = nn.Conv2d(dim, dim, 3, 1, 1)
+        if self.use_rcab:
+            self.resi_connection2 = ResidualGroup(num_feat=dim,squeeze_factor=16,num_block=12)
+            self.resi_connection3 = nn.Conv2d(dim, dim, 3, 1, 1)
 
         self.patch_embed = PatchEmbed(
             img_size=img_size, patch_size=patch_size, in_chans=0, embed_dim=dim, norm_layer=None)
@@ -754,8 +757,9 @@ class RSTB(nn.Module):
         shortcut = x
         x = self.patch_unembed(self.residual_group(x, x_size), x_size)
         x = self.resi_connection1(x)
-        x = self.resi_connection2(x)
-        x = self.resi_connection3(x)
+        if self.use_rcab:
+            x = self.resi_connection2(x)
+            x = self.resi_connection3(x)
         x = self.patch_embed(x) + shortcut
         return x
 
@@ -944,6 +948,7 @@ class SwinIR_RCAB(nn.Module):
                  upsampler='',
                  resi_connection='1conv',
                  pixelshuffleFactor=1,
+                 use_rcab=True,
                  out_chans=1,
                  vis=False,
                  **kwargs):
@@ -1045,6 +1050,7 @@ class SwinIR_RCAB(nn.Module):
                 use_checkpoint=use_checkpoint,
                 img_size=img_size,
                 patch_size=patch_size,
+                use_rcab=use_rcab,
                 resi_connection=resi_connection)
             self.layers.append(layer)
         self.norm = norm_layer(self.num_features)

@@ -51,11 +51,11 @@ def GetModel(opt):
             opt,
             patch_size=(1,4,4),
             in_chans=1,
-            embed_dim=96,
-            depths=[2, 2, 6, 2],
-            num_heads=[3, 6, 12, 24],
+            embed_dim=192,
+            depths=[6,6,6,6,6],
+            num_heads=[8,8,8,8,8],
             window_size=(2,7,7),
-            mlp_ratio=4.,
+            mlp_ratio=2.,
             qkv_bias=True,
             qk_scale=None,
             drop_rate=0.,
@@ -66,7 +66,8 @@ def GetModel(opt):
             upscale=1,
             frozen_stages=-1,
             use_checkpoint=False,
-            vis=False)
+            vis=False,
+            **opt.model_opts)
     elif opt.model.lower() == 'swinir_rcab':
         net = SwinIR_RCAB(
             opt,
@@ -74,7 +75,8 @@ def GetModel(opt):
             in_chans=1,
             upscale=1,
             use_checkpoint=False,
-            vis=False)
+            vis=False,
+            **opt.model_opts)
     elif opt.model.lower() == 'fourierconvnet':
         net = FourierConvNet()
     elif opt.model.lower() == 'vgg':

@@ -15,8 +15,8 @@ import wandb
 
 plt.switch_backend('agg')
 
-toTensor = transforms.ToTensor()  
-toPIL = transforms.ToPILImage()      
+toTensor = transforms.ToTensor()
+toPIL = transforms.ToPILImage()
 
 def testAndMakeCombinedPlots(net,loader,opt,idx=0):
 
@@ -80,7 +80,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
             if opt.logimage: makeplotBool = False
 
             lr, sr, hr = lr_bat.data[j], sr_bat.data[j], hr_bat.data[j]
-            
+
             if opt.task == 'segment':
                 if opt.model == 'wgan':
                     lr, sr, hr = toPIL(lr), toPIL(sr.float() / (opt.nch_out - 1)), toPIL(hr.float())
@@ -90,7 +90,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                     sr_psnr, sr_ssim = calcScores(sr, hr, makeplotBool, plotidx=3, title='re')
                     calcScores(hr, None, makeplotBool, plotidx=4)
                 elif opt.model == 'wgan_binary':
-                    
+
                     m = nn.LogSoftmax(dim=0)
                     sr = m(sr)
                     # print(sr)
@@ -105,7 +105,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                     sr_psnr, sr_ssim = calcScores(sr, hr, makeplotBool, plotidx=3, title='re')
                     calcScores(hr, None, makeplotBool, plotidx=4)
                 else:
-                    if torch.max(hr.long()) == 0: 
+                    if torch.max(hr.long()) == 0:
                         continue # all black, ignore
                     m = nn.LogSoftmax(dim=0)
                     sr = m(sr)
@@ -135,11 +135,11 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                     print('successes (%d/%d)' % (mean_sr_psnr,mean_bc_psnr+mean_sr_psnr))
 
                 continue
-            else:                
+            else:
 
                 if 'sim' not in opt.dataset and opt.scale > 1:
                     sr = torch.clamp(sr,min=0,max=1)
-                    
+
                     if lr.shape[0] > 3:
                         lr = lr[lr.shape[0] // 2] # channels are not for colours but separate grayscale frames, take middle
                         hr = hr[hr.shape[0] // 2]
@@ -151,26 +151,26 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                     # ---- Plotting -----
 
                     lr, bc, sr, hr = toPIL(lr), toPIL(bc), toPIL(sr), toPIL(hr)
-                    
+
                     if makeplotBool: plt.figure(figsize=(10,5))
                     calcScores(lr, hr,makeplotBool, plotidx=1, title='lr')
                     bc_psnr, bc_ssim = calcScores(bc, hr,makeplotBool, plotidx=2, title='bc')
                     sr_psnr, sr_ssim = calcScores(sr, hr,makeplotBool, plotidx=3, title='sr')
                     calcScores(hr, None, makeplotBool, plotidx=4)
-                elif 'sim' in opt.dataset: # SIM dataset 
+                elif 'sim' in opt.dataset: # SIM dataset
 
                     if 'simin_simout' in opt.task or 'wfin_simout' in opt.task:
                         ## sim target
                         gt_bat = bat[2]
                         wf_bat = bat[3]
                         bc, hr, lr = hr_bat.data[j], gt_bat.data[j], wf_bat.data[j]
-                        sr = torch.clamp(sr,min=0,max=1)     
-                    else: 
+                        sr = torch.clamp(sr,min=0,max=1)
+                    else:
                         ## gt target
                         sim_bat = bat[2]
                         wf_bat = bat[3]
                         bc, hr, lr = sim_bat.data[j], hr_bat.data[j], wf_bat.data[j]
-                        sr = torch.clamp(sr,min=0,max=1) 
+                        sr = torch.clamp(sr,min=0,max=1)
 
 
                     # fix to deal with 3D deconvolution
@@ -201,7 +201,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                         hr = hr[hr.shape[0] // 2].unsqueeze(0)
 
                     img = toPIL(lr)
-                    
+
                     if lr.shape[0] == 1:
                         bc = ndimage.gaussian_filter(img, sigma=(0.6, 0.6), order=0)
                         bc = np.expand_dims(bc, 2)
@@ -216,7 +216,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                     bc_psnr, bc_ssim = calcScores(bc, hr, makeplotBool, plotidx=2, title='sm')
                     sr_psnr, sr_ssim = calcScores(sr, hr, makeplotBool, plotidx=3, title='re')
                     calcScores(hr, None, makeplotBool, plotidx=4)
-            
+
             mean_bc_psnr += bc_psnr
             mean_sr_psnr += sr_psnr
             mean_bc_ssim += bc_ssim
@@ -247,7 +247,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                 orig_filename = os.path.basename(bat[-1][0])
                 sr.save('%s/%s.png' % (opt.out,orig_filename))
 
-            if True: # wandb imaging logging
+            if not opt.disable_wandb: # wandb imaging logging
                 if opt.task == 'segment':
                     opt.wandb.log({'valid_img_lr_%d' % count: wandb.Image(lr)},step=idx+1)
                     opt.wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)},step=idx+1)
@@ -257,7 +257,7 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
                     opt.wandb.log({'valid_img_bc_%d' % count: wandb.Image(bc)},step=idx+1)
                     opt.wandb.log({'valid_img_sr_%d' % count: wandb.Image(sr)},step=idx+1)
                     opt.wandb.log({'valid_img_hr_%d' % count: wandb.Image(hr)},step=idx+1)
-                    
+
 
             if opt.logimage:
                 if opt.task == 'segment':
@@ -274,14 +274,15 @@ def testAndMakeCombinedPlots(net,loader,opt,idx=0):
             if opt.test: print('[%d/%d]' % (count,min(len(loader),opt.ntest)),end='\r')
             if count == opt.ntest: break
         if count == opt.ntest: break
-    
+
     if opt.test: print('\n')
     summarystr = ""
-    if count == 0: 
+    if count == 0:
         summarystr += 'Warning: all test samples skipped - count forced to 1 -- '
         count = 1
     summarystr += 'Testing of %d samples complete. bc: %0.2f dB / %0.4f, sr: %0.2f dB / %0.4f' % (count, mean_bc_psnr / count, mean_bc_ssim / count, mean_sr_psnr / count, mean_sr_ssim / count)
-    opt.wandb.log({'valid_bc_psnr':mean_bc_psnr / count, 'valid_bc_ssim': mean_bc_ssim / count, 'valid_sr_psnr':mean_sr_psnr / count, 'valid_sr_ssim': mean_sr_ssim / count},step=idx+1)
+    if not opt.disable_wandb:
+        opt.wandb.log({'valid_bc_psnr':mean_bc_psnr / count, 'valid_bc_ssim': mean_bc_ssim / count, 'valid_sr_psnr':mean_sr_psnr / count, 'valid_sr_ssim': mean_sr_ssim / count},step=idx+1)
     print(summarystr)
     print(summarystr,file=opt.fid)
     opt.fid.flush()
@@ -307,7 +308,7 @@ def generate_convergence_plots(opt,filename):
         if 'sr: ' in line:
             psnrlist.append(float(line.split('sr: ')[1].split(' dB')[0]))
             ssimlist.append(float(line.split('sr: ')[1].split(' dB / ')[1]))
-    
+
     plt.figure(figsize=(12,5))
     plt.subplot(121)
     plt.plot(psnrlist,'.-')

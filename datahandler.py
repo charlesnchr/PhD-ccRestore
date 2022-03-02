@@ -583,6 +583,7 @@ class GenericPickleDataset(Dataset):
         self.nch = opt.nch_in
         self.len = len(self.images)
         self.category = category
+        self.imageSize = opt.imageSize
 
     def __getitem__(self, index):
 
@@ -605,10 +606,24 @@ class GenericPickleDataset(Dataset):
 
             if len(inputTuple) == 2:
                 lq, hq = inputTuple
-                lq, hq = toTensor(lq).float(), toTensor(hq).float()
+                # lq, hq = toTensor(lq).float(), toTensor(hq).float()
             elif len(inputTuple) == 4: ## assuming time sequence of 3 adjacent frames for input
                 lq, hq = inputTuple[1], inputTuple[3]
-                lq, hq = toTensor(lq).float(), toTensor(hq).float()
+                # lq, hq = toTensor(lq).float(), toTensor(hq).float()
+
+            # random crop
+            w,h = lq.size
+            if w > self.imageSize or h > self.imageSize:
+                ix = random.randrange(0,w-self.imageSize+1)
+                iy = random.randrange(0,h-self.imageSize+1)
+
+                lq = lq.crop((ix,iy,ix+self.imageSize,iy+self.imageSize))
+                hq = hq.crop((ix,iy,ix+self.imageSize,iy+self.imageSize))
+
+                # lq.save('testlq.png')
+                # hq.save('testhq.png')
+
+            lq, hq = toTensor(lq).float(), toTensor(hq).float()
 
             # multi-image input?
             # if lq.shape[0] > self.nch:
