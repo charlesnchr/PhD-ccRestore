@@ -109,13 +109,10 @@ def SIMimages(opt, DIo, PSFo, OTFo):
         sup_sig = DIo[:,:,signal_idx]*sigs[illum_idx]  # superposed signal
 
         # superposed (noise-free) Images
-        if opt.scale < 2: # hack option to make undblurred images
-            if opt.UsePSF == 1:
-                ST = conv2(sup_sig, PSFo, 'same')
-            else:
-                ST = np.real(ifft2(fft2(sup_sig)*fftshift(OTFo)))
+        if opt.UsePSF == 1:
+            ST = conv2(sup_sig, PSFo, 'same')
         else:
-            ST = sup_sig
+            ST = np.real(ifft2(fft2(sup_sig)*fftshift(OTFo)))
 
         # Gaussian noise generation
         aNoise = opt.NoiseLevel/100  # noise
