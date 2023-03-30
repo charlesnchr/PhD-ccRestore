@@ -691,7 +691,8 @@ class GenericPickleDataset(Dataset):
             if type(lq) == np.ndarray:
                 h, w = lq.shape
 
-                assert hq.dtype == "uint16", "ndarray datatypes should should be uint16"
+                # first model was trained on 16 bit images (cvat uses 8 bit, so removing requirement)
+                # assert hq.dtype == "uint16", "ndarray datatypes should should be uint16"
 
                 lq = img_as_float(lq)
                 hq = img_as_float(hq)
