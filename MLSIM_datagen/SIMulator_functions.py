@@ -149,6 +149,63 @@ def SIMimages(opt, DIo, PSFo, OTFo):
     return frames
 
 
+def SIMimage_patterns(opt, w, PSFo, OTFo):
+    # AIM: to generate raw sim images
+    # INPUT VARIABLES
+    #   k2: illumination frequency
+    #   DIo: specimen image
+    #   PSFo: system PSF
+    #   OTFo: system OTF
+    #   UsePSF: 1 (to blur SIM images by convloving with PSF)
+    #           0 (to blur SIM images by truncating its fourier content beyond OTF)
+    #   NoiseLevel: percentage noise level for generating gaussian noise
+    # OUTPUT VARIABLES
+    #   frames:  raw sim images
+    #   DIoTnoisy: noisy wide field image
+    #   DIoT: noise-free wide field image
+
+    wo = w / 2
+    x = np.linspace(0, w - 1, w)
+    y = np.linspace(0, w - 1, w)
+    [X, Y] = np.meshgrid(x, y)
+
+    # Illuminating pattern
+
+    # orientation direction of illumination patterns
+    orientation = np.zeros(opt.Nangles)
+    for i in range(opt.Nangles):
+        orientation[i] = i * pi / opt.Nangles + opt.alpha + opt.angleError
+
+    if opt.shuffleOrientations:
+        np.random.shuffle(orientation)
+
+    # illumination frequency vectors
+    k2mat = np.zeros((opt.Nangles, 2))
+    for i in range(opt.Nangles):
+        theta = orientation[i]
+        k2mat[i, :] = (opt.k2 / w) * np.array([cos(theta), sin(theta)])
+
+    # illumination phase shifts along directions with errors
+    ps = np.zeros((opt.Nangles, opt.Nshifts))
+    for i_a in range(opt.Nangles):
+        for i_s in range(opt.Nshifts):
+            ps[i_a, i_s] = 2 * pi * i_s / opt.Nshifts + opt.phaseError[i_a, i_s]
+
+    # illumination patterns
+    frames = []
+    for i_a in range(opt.Nangles):
+        for i_s in range(opt.Nshifts):
+            # illuminated signal
+            sig = opt.meanInten[i_a] + opt.ampInten[i_a] * cos(
+                2 * pi * (k2mat[i_a, 0] * (X - wo) + k2mat[i_a, 1] * (Y - wo))
+                + ps[i_a, i_s]
+            )
+
+            frames.append(sig)
+
+    return frames
+
+
 def ApplyOTF(opt, Io):
     w = Io.shape[0]
     psfGT, otfGT = PsfOtf(w, 1.8 * opt.scale)
