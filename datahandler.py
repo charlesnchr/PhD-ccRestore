@@ -50,7 +50,6 @@ toPIL = transforms.ToPILImage()
 
 
 def GetDataloaders(opt):
-
     # if no separate validation set has been provided
     if opt.rootValidation is None:
         opt.rootValidation = opt.root
@@ -155,7 +154,6 @@ class ImageDataset(Dataset):
 
 
 def load_image_dataset(root, category, opt):
-
     dataset = ImageDataset(root, category, opt)
     if category == "train":
         dataloader = DataLoader(
@@ -239,7 +237,6 @@ class ImageClassDataset(Dataset):
 
 
 def load_imageclass_dataset(root, category, opt):
-
     dataset = ImageClassDataset(root, category, opt)
     if category == "train":
         dataloader = DataLoader(
@@ -319,7 +316,6 @@ class DoubleImageDataset(Dataset):
 
 
 def load_doubleimage_dataset(root, category, opt):
-
     dataset = DoubleImageDataset(root, category, opt)
     if category == "train":
         dataloader = DataLoader(
@@ -467,7 +463,6 @@ class DIV2KDataset(Dataset):
         self.len = len(self.hqimg)
 
     def __getitem__(self, index):
-
         # lq, hq = Image.open(self.lqimg[index]), Image.open(self.hqimg[index])
         # lq, hq = toTensor(lq), toTensor(hq)
 
@@ -497,7 +492,6 @@ class DIV2KDataset(Dataset):
 
 
 def load_DIV2K_dataset(root, category, opt):
-
     dataset = DIV2KDataset(root, category, opt)
 
     if category == "train":
@@ -556,7 +550,6 @@ class HDF5Dataset(Dataset):
 
 
 def load_HDF5_dataset(root, category, opt):
-
     dataset = HDF5Dataset(root, category, opt)
     if category == "train":
         dataloader = DataLoader(
@@ -613,7 +606,6 @@ class PickleDataset(Dataset):
 
 
 def load_Pickle_dataset(root, category, opt):
-
     dataset = PickleDataset(root, category, opt)
     if category == "train":
         dataloader = DataLoader(
@@ -659,7 +651,6 @@ class GenericPickleDataset(Dataset):
         self.imageSize = opt.imageSize
 
     def __getitem__(self, index):
-
         if self.scale > 1:  # SR
             # img = pickle.load(open(self.images[index],'rb'))
             img = np.load(self.images[index], allow_pickle=True)
@@ -763,7 +754,6 @@ class GenericPickleDataset(Dataset):
 
 
 def load_GenericPickle_dataset(root, category, opt):
-
     dataset = GenericPickleDataset(root, category, opt)
 
     if category == "train":
@@ -876,7 +866,6 @@ class SIM_dataset(Dataset):
 
 
 def load_SIM_dataset(root, category, opt):
-
     dataset = SIM_dataset(root, category, opt)
     if category == "train":
         dataloader = DataLoader(
@@ -891,7 +880,6 @@ def load_SIM_dataset(root, category, opt):
 
 class real_SIM_dataset(Dataset):
     def __init__(self, root, category, opt):
-
         self.imagestacks = []
 
         for folder in glob.glob(root + "/partitioned*"):
@@ -953,7 +941,6 @@ class real_SIM_dataset(Dataset):
 
 
 def load_real_SIM_dataset(root, category, opt):
-
     dataset = real_SIM_dataset(root, category, opt)
     if category == "train":
         dataloader = DataLoader(
@@ -968,7 +955,6 @@ def load_real_SIM_dataset(root, category, opt):
 
 class Fourier_SIM_dataset(Dataset):
     def __init__(self, root, category, opt):
-
         self.images = []
 
         for folder in root.split(","):
@@ -996,7 +982,6 @@ class Fourier_SIM_dataset(Dataset):
         self.imageSize = opt.imageSize
 
     def __getitem__(self, index):
-
         stack = io.imread(self.images[index])
 
         if len(stack.shape) > 3:
@@ -1177,7 +1162,6 @@ class Fourier_SIM_dataset(Dataset):
 
 
 def load_fourier_SIM_dataset(root, category, opt):
-
     dataset = Fourier_SIM_dataset(root, category, opt)
     if category == "train":
         dataloader = DataLoader(
@@ -1217,7 +1201,6 @@ class NTIREDenoisingdataset(Dataset):
         self.len = len(self.images)
 
     def __getitem__(self, index):
-
         lq, hq = pickle.load(open(self.images[index], "rb"))
         lq, hq = toTensor(lq), toTensor(hq)
 
@@ -1239,7 +1222,6 @@ class NTIREDenoisingdataset(Dataset):
 
 
 def load_NTIREDenoising_dataset(root, category, opt):
-
     dataset = NTIREDenoisingdataset(root, category, opt)
     if category == "train":
         dataloader = DataLoader(
@@ -1279,7 +1261,6 @@ class EstimateNLdataset(Dataset):
         self.len = len(self.images)
 
     def __getitem__(self, index):
-
         # rotate and flip?
         # if random.random() > 0.5:
         #     lq = lq.permute(0, 2, 1)
@@ -1310,7 +1291,6 @@ class EstimateNLdataset(Dataset):
 
 
 def load_EstimateNL_dataset(root, category, opt):
-
     dataset = EstimateNLdataset(root, category, opt)
     if category == "train":
         dataloader = DataLoader(
@@ -1327,7 +1307,6 @@ class ERdataset(Dataset):
     def __init__(
         self, root, category, opt
     ):  # highres images not currently scaled, just 96 by default
-
         self.img = Image.open(root)
         self.img = np.array(self.img)
 
@@ -1337,7 +1316,6 @@ class ERdataset(Dataset):
             self.len = 10
 
     def __getitem__(self, index):
-
         # random crop
         dim = 384
         r, c = self.img.shape
@@ -1381,7 +1359,6 @@ class ERdataset(Dataset):
 
 
 def load_ER_dataset(root, category, shuffle=True, batchSize=6, num_workers=0):
-
     dataset = ERdataset(root, category)
     dataloader = DataLoader(
         dataset, batch_size=batchSize, shuffle=shuffle, num_workers=num_workers

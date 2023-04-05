@@ -27,7 +27,6 @@ import wandb
 
 
 def options():
-
     opt = parser.parse_args()
 
     if opt.norm == "":
@@ -131,7 +130,6 @@ def remove_dataparallel_wrapper(state_dict):
 
 
 def ESRGANtrain(opt, dataloader, validloader, generator):
-
     start_epoch = 0
 
     discriminator = ESRGAN_Discriminator(
@@ -346,7 +344,6 @@ def ESRGANtrain(opt, dataloader, validloader, generator):
 
 
 def train(opt, dataloader, validloader, net):
-
     start_epoch = 0
     if opt.task == "segment" or opt.task == "classification":
         loss_function = nn.CrossEntropyLoss()
@@ -560,7 +557,6 @@ def train(opt, dataloader, validloader, net):
 
 
 def main(opt):
-
     # try:
     #     submitCmd()
     # except:
