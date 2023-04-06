@@ -42,7 +42,7 @@ def GetParams():  # uniform randomisation
     # orientation error
     opt.angleError = 10 * pi / 180 * (np.random.rand() - 0.5)
     # shuffle the order of orientations
-    opt.shuffleOrientations = True
+    opt.shuffleOrientations = False
     # random phase shift errors
     opt.phaseError = 1 * pi * (0.5 - np.random.rand(opt.Nangles, opt.Nshifts))
     # mean illumination intensity
@@ -60,7 +60,7 @@ def GetParams():  # uniform randomisation
     # include OTF and GT in stack
     opt.OTF_and_GT = True
     opt.applyOTFtoGT = True
-    opt.noStripes = True
+    opt.noStripes = False
 
     return opt
 

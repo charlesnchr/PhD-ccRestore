@@ -149,7 +149,17 @@ def SIMimages(opt, DIo, PSFo, OTFo):
     return frames
 
 
-def SIMimage_patterns(opt, w, PSFo, OTFo):
+def square_wave(x):
+    return np.heaviside(np.cos(x), 0)
+    # return np.where(np.cos(x) >= 0, 1, 0)
+
+
+def square_wave_one_third(x):
+    # sums to 0
+    return 2 * (np.heaviside(np.cos(x) - np.cos(1 * np.pi / 3), 0) - 1 / 3)
+
+
+def SIMimage_patterns(opt, w, PSFo, OTFo, func=np.cos):
     # AIM: to generate raw sim images
     # INPUT VARIABLES
     #   k2: illumination frequency
@@ -164,9 +174,19 @@ def SIMimage_patterns(opt, w, PSFo, OTFo):
     #   DIoTnoisy: noisy wide field image
     #   DIoT: noise-free wide field image
 
+    # first version, december 2022
+    # wo = w / 2
+    # x = np.linspace(0, w - 1, 912)
+    # y = np.linspace(0, w - 1, 1140)
+    # [X, Y] = np.meshgrid(x, y)
+
     wo = w / 2
-    x = np.linspace(0, w - 1, w)
-    y = np.linspace(0, w - 1, w)
+    crop_factor_x = 428 / 912
+    crop_factor_y = 684 / 1140
+    # crop_factor_x = 1
+    # crop_factor_y = 1
+    x = np.linspace(0, crop_factor_x * 512 - 1, int(crop_factor_x * 912))
+    y = np.linspace(0, crop_factor_y * 512 - 1, int(crop_factor_y * 1140))
     [X, Y] = np.meshgrid(x, y)
 
     # Illuminating pattern
@@ -176,13 +196,17 @@ def SIMimage_patterns(opt, w, PSFo, OTFo):
     for i in range(opt.Nangles):
         orientation[i] = i * pi / opt.Nangles + opt.alpha + opt.angleError
 
+    print(orientation)
     if opt.shuffleOrientations:
+        print("shuffling yes")
         np.random.shuffle(orientation)
+    print(orientation)
 
     # illumination frequency vectors
     k2mat = np.zeros((opt.Nangles, 2))
     for i in range(opt.Nangles):
         theta = orientation[i]
+        print(theta)
         k2mat[i, :] = (opt.k2 / w) * np.array([cos(theta), sin(theta)])
 
     # illumination phase shifts along directions with errors
@@ -196,7 +220,7 @@ def SIMimage_patterns(opt, w, PSFo, OTFo):
     for i_a in range(opt.Nangles):
         for i_s in range(opt.Nshifts):
             # illuminated signal
-            sig = opt.meanInten[i_a] + opt.ampInten[i_a] * cos(
+            sig = opt.meanInten[i_a] + opt.ampInten[i_a] * func(
                 2 * pi * (k2mat[i_a, 0] * (X - wo) + k2mat[i_a, 1] * (Y - wo))
                 + ps[i_a, i_s]
             )
