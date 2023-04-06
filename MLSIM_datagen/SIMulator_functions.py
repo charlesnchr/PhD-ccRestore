@@ -181,10 +181,15 @@ def SIMimage_patterns(opt, w, PSFo, OTFo, func=np.cos):
     # [X, Y] = np.meshgrid(x, y)
 
     wo = w / 2
+
+    # these crop factors provide images in the camera resolution
     crop_factor_x = 428 / 912
     crop_factor_y = 684 / 1140
-    # crop_factor_x = 1
-    # crop_factor_y = 1
+
+    # data from dec 2022 acquired with DMD patterns with the below factors
+    crop_factor_x = 1
+    crop_factor_y = 1
+
     x = np.linspace(0, crop_factor_x * 512 - 1, int(crop_factor_x * 912))
     y = np.linspace(0, crop_factor_y * 512 - 1, int(crop_factor_y * 1140))
     [X, Y] = np.meshgrid(x, y)
