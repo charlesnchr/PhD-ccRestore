@@ -87,16 +87,19 @@ def gen_sample_pattern():
 
     PSFo, OTFo = PsfOtf(w, opt.scale)
 
-    frames = SIMimage_patterns(opt, w, PSFo, OTFo, func=square_wave_one_third)
+    frames = SIMimage_patterns(
+        opt, w, PSFo, OTFo, func=square_wave_one_third, pixelsize_ratio=2
+    )
 
     new_frames = []
     for frame in frames:
         frame = exposure.rescale_intensity(frame, out_range="uint8")
         frame = img_as_ubyte(frame)
+
         new_frames.append(frame)
     frames = np.array(new_frames)
 
-    io.imsave("patterns.tif", frames)
+    io.imsave("patterns_pixelsize_ratio_2.tif", frames)
     print("generated sample pattern patterns.tif")
 
 

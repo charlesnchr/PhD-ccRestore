@@ -159,7 +159,7 @@ def square_wave_one_third(x):
     return 2 * (np.heaviside(np.cos(x) - np.cos(1 * np.pi / 3), 0) - 1 / 3)
 
 
-def SIMimage_patterns(opt, w, PSFo, OTFo, func=np.cos):
+def SIMimage_patterns(opt, w, PSFo, OTFo, func=np.cos, pixelsize_ratio=1):
     # AIM: to generate raw sim images
     # INPUT VARIABLES
     #   k2: illumination frequency
@@ -205,14 +205,14 @@ def SIMimage_patterns(opt, w, PSFo, OTFo, func=np.cos):
     if opt.shuffleOrientations:
         print("shuffling yes")
         np.random.shuffle(orientation)
-    print(orientation)
 
     # illumination frequency vectors
     k2mat = np.zeros((opt.Nangles, 2))
     for i in range(opt.Nangles):
         theta = orientation[i]
-        print(theta)
-        k2mat[i, :] = (opt.k2 / w) * np.array([cos(theta), sin(theta)])
+        k2mat[i, :] = np.array(
+            [(opt.k2 * pixelsize_ratio / w) * cos(theta), (opt.k2 / w) * sin(theta)]
+        )
 
     # illumination phase shifts along directions with errors
     ps = np.zeros((opt.Nangles, opt.Nshifts))
