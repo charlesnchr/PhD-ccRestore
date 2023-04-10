@@ -23,6 +23,11 @@ parser.add_argument(
     default="/local/scratch/cnc39/phd/datasets/DIV2K/DIV2K_train_HR",
 )
 parser.add_argument(
+    "--params",
+    type=str,
+    default="GetParams",
+)
+parser.add_argument(
     "--nrep", type=int, default=1, help="instances of same source image"
 )
 parser.add_argument("--datagen_workers", type=int, default=8, help="")
@@ -62,6 +67,58 @@ if opt.root == "auto":
     opt.root = opt.out + "_SIMdata"
 
 np.random.seed(20221219)
+
+
+def GetParams_20230410():  # uniform randomisation
+    SIMopt = argparse.Namespace()
+
+    # phase shifts for each stripe
+    SIMopt.Nshifts = opt.Nshifts
+    # number of orientations of stripes
+    SIMopt.Nangles = opt.Nangles
+    # used to adjust PSF/OTF width
+    SIMopt.scale = opt.PSFOTFscale + 0.1 * (np.random.rand() - 0.5)
+    # modulation factor
+    SIMopt.ModFac = opt.ModFac + 0.3 * (np.random.rand() - 0.5)
+    # orientation offset
+    SIMopt.alpha = opt.alphaErrorFac * pi * (np.random.rand() - 0.5)
+    # orientation error
+    SIMopt.angleError = opt.angleError * pi / 180 * (np.random.rand() - 0.5)
+    # shuffle the order of orientations
+    SIMopt.shuffleOrientations = not opt.dontShuffleOrientations
+    # random phase shift errors
+    SIMopt.phaseError = (
+        opt.phaseErrorFac * pi * (0.5 - np.random.rand(SIMopt.Nangles, SIMopt.Nshifts))
+    )
+    # mean illumination intensity
+    SIMopt.meanInten = np.ones(SIMopt.Nangles) * 0.5
+    # amplitude of illumination intensity above mean
+    SIMopt.ampInten = np.ones(SIMopt.Nangles) * 0.5 * SIMopt.ModFac
+    # illumination freq
+    SIMopt.k2 = opt.k2 + opt.k2_err * (np.random.rand() - 0.5)
+    # noise type
+    SIMopt.usePoissonNoise = opt.usePoissonNoise
+    # noise level (percentage for Gaussian)
+    SIMopt.NoiseLevel = opt.NoiseLevel + opt.NoiseLevelRandFac * (
+        np.random.rand() - 0.5
+    )
+    # 1(to blur using PSF), 0(to blur using OTF)
+    SIMopt.UsePSF = opt.usePSF
+    # include OTF and GT in stack
+    SIMopt.OTF_and_GT = True
+    # use a blurred target (according to theoretical optimal construction)
+    SIMopt.applyOTFtoGT = opt.applyOTFtoGT
+    # whether to simulate images using just widefield illumination
+    SIMopt.noStripes = opt.noStripes
+
+    # function to use for stripes
+    SIMopt.func = (
+        np.cos
+        if np.random.rand() < 0.5
+        else MLSIM_datagen.SIMulator_functions.square_wave_one_third
+    )
+
+    return SIMopt
 
 
 # ------------ Parameters-------------
@@ -107,6 +164,9 @@ def GetParams():  # uniform randomisation
     # whether to simulate images using just widefield illumination
     SIMopt.noStripes = opt.noStripes
 
+    # function to use for stripes
+    SIMopt.func = np.cos
+
     return SIMopt
 
 
@@ -139,10 +199,11 @@ def processImage(file):
     gt_dim = [int(x * opt.scale) for x in gt_dim]
 
     for n in range(opt.nrep):
-        SIMopt = GetParams()
+        SIMopt = eval("%s()" % opt.params)  # GetParams
         SIMopt.outputname = "%s/%s_%d.tif" % (opt.root, filename, n)
+
         I = MLSIM_datagen.SIMulator_functions.Generate_SIM_Image(
-            SIMopt, Io, opt.imageSize, gt_dim
+            SIMopt, Io, opt.imageSize, gt_dim, func=opt.func
         )
 
 
@@ -169,7 +230,7 @@ def processSeqImage(file):
     gt_dim = [int(x * opt.scale) for x in gt_dim]
 
     for n in range(opt.nrep):
-        SIMopt = GetParams()
+        SIMopt = eval("%s()" % opt.params)
         SIMopt.outputname = "%s/%s_%d.tif" % (opt.root, filename, n)
         I = MLSIM_datagen.SeqSIMulator_functions.Generate_SIM_Image(
             SIMopt, Io, opt.imageSize, gt_dim
@@ -208,7 +269,7 @@ def processSeqImageFolder(filepath):
     gt_dim = [int(x * opt.scale) for x in gt_dim]
 
     for n in range(opt.nrep):
-        SIMopt = GetParams()
+        SIMopt = eval("%s()" % opt.params)
         SIMopt.outputname = "%s/%s_%s_%d.tif" % (opt.root, pardir, filename, n)
         I = MLSIM_datagen.SeqSIMulator_functions.Generate_SIM_Image(
             SIMopt, Io, opt.imageSize, gt_dim

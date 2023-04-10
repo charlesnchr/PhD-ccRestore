@@ -46,7 +46,7 @@ def conv2(x, y, mode="same"):
     return np.rot90(convolve2d(np.rot90(x, 2), np.rot90(y, 2), mode=mode), 2)
 
 
-def SIMimages(opt, DIo, PSFo, OTFo):
+def SIMimages(opt, DIo, PSFo, OTFo, func=np.cos, pixelsize_ratio=1):
     # AIM: to generate raw sim images
     # INPUT VARIABLES
     #   k2: illumination frequency
@@ -97,7 +97,9 @@ def SIMimages(opt, DIo, PSFo, OTFo):
     k2mat = np.zeros((opt.Nangles, 2))
     for i in range(opt.Nangles):
         theta = orientation[i]
-        k2mat[i, :] = (opt.k2 / w) * np.array([cos(theta), sin(theta)])
+        k2mat[i, :] = np.array(
+            [(opt.k2 * pixelsize_ratio / w) * cos(theta), (opt.k2 / w) * sin(theta)]
+        )
 
     # illumination phase shifts along directions with errors
     ps = np.zeros((opt.Nangles, opt.Nshifts))
@@ -111,7 +113,7 @@ def SIMimages(opt, DIo, PSFo, OTFo):
         for i_s in range(opt.Nshifts):
             # illuminated signal
             if not opt.noStripes:
-                sig = opt.meanInten[i_a] + opt.ampInten[i_a] * cos(
+                sig = opt.meanInten[i_a] + opt.ampInten[i_a] * func(
                     2 * pi * (k2mat[i_a, 0] * (X - wo) + k2mat[i_a, 1] * (Y - wo))
                     + ps[i_a, i_s]
                 )
@@ -276,7 +278,7 @@ def ApplyOTF(opt, Io):
 # return stack
 
 
-def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024):
+def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024, func=np.cos):
     DIo = Io.astype("float")
 
     if in_dim is not None:
@@ -291,7 +293,7 @@ def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024):
 
     PSFo, OTFo = PsfOtf(w, opt.scale)
 
-    frames = SIMimages(opt, DIo, PSFo, OTFo)
+    frames = SIMimages(opt, DIo, PSFo, OTFo, func=func)
 
     if opt.OTF_and_GT:
         frames.append(OTFo)
