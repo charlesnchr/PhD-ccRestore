@@ -203,7 +203,7 @@ def processImage(file):
         SIMopt.outputname = "%s/%s_%d.tif" % (opt.root, filename, n)
 
         I = MLSIM_datagen.SIMulator_functions.Generate_SIM_Image(
-            SIMopt, Io, opt.imageSize, gt_dim, func=opt.func
+            SIMopt, Io, opt.imageSize, gt_dim, func=SIMopt.func
         )
 
 
