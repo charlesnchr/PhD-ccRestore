@@ -3,6 +3,7 @@ __pycache__
 archieve
 athe
 runs
+runs-inference
 root
 .ipynb_checkpoints
 wandb
