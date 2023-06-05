@@ -218,10 +218,19 @@ def gen_sample_pattern():
 
     PSFo, OTFo = PsfOtf(w, opt.scale)
 
-    pixelsize_ratio = 1.6
+    # opt.k2 = 70
+    opt.k2 = 80  # most used value so far
+    # opt.k2 = 90
+    # opt.k2 = 100
+    # pixelsize_ratio = 1.6
+    # pixelsize_ratio = 1.7
+    pixelsize_ratio = 1.8  # seemingly best value so far
+    # func = np.cos
+    # func = square_wave
+    func = square_wave_one_third  # seems best for DMD
 
     frames = SIMimage_patterns(
-        opt, w, PSFo, OTFo, func=square_wave_one_third, pixelsize_ratio=pixelsize_ratio
+        opt, w, PSFo, OTFo, func=func, pixelsize_ratio=pixelsize_ratio
     )
 
     new_frames = []
@@ -233,10 +242,44 @@ def gen_sample_pattern():
     frames = np.array(new_frames)
 
     io.imsave(
-        f"plugins-branch/sim_patterns/patterns_pixelsize_ratio_{pixelsize_ratio}_k2_{opt.k2}.tif",
+        f"plugins-branch/sim_patterns/patterns_pixelsize_ratio_{pixelsize_ratio}_k2_{opt.k2}_func_{func.__name__}.tif",
         frames,
     )
     print("generated sample pattern patterns.tif")
+
+
+def gen_sample_pattern_loop():
+    w = 512
+    opt = GetParams_Exact()
+
+    PSFo, OTFo = PsfOtf(w, opt.scale)
+
+    k2_arr = [200]
+    pixelsize_ratio_arr = [1.6, 1.7, 1.8]
+    func_arr = [np.cos, square_wave, square_wave_one_third]
+
+    for k2 in k2_arr:
+        for pixelsize_ratio in pixelsize_ratio_arr:
+            for func in func_arr:
+                opt.k2 = k2
+
+                frames = SIMimage_patterns(
+                    opt, w, PSFo, OTFo, func=func, pixelsize_ratio=pixelsize_ratio
+                )
+
+                new_frames = []
+                for frame in frames:
+                    frame = exposure.rescale_intensity(frame, out_range="uint8")
+                    frame = img_as_ubyte(frame)
+
+                    new_frames.append(frame)
+                frames = np.array(new_frames)
+
+                io.imsave(
+                    f"plugins-branch/sim_patterns/patterns_pixelsize_ratio_{pixelsize_ratio}_k2_{opt.k2}_func_{func.__name__}.tif",
+                    frames,
+                )
+                print("generated sample pattern patterns.tif")
 
 
 def read_sample_pattern():
@@ -255,9 +298,11 @@ def read_sample_pattern():
 
 
 if __name__ == "__main__":
-    gen_sample_images()
-    read_sample_image()
+    # gen_sample_images()
+    # read_sample_image()
     # read_exp_sample_image()
 
     # gen_sample_pattern()
     # read_sample_pattern()
+
+    gen_sample_pattern_loop()
