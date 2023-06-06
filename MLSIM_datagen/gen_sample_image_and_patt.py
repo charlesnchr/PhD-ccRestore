@@ -14,12 +14,18 @@ import scipy.special
 import argparse
 from SIMulator_functions import (
     SIMimages,
+    SIMimages_speckle,
     SIMimage_patterns,
     PsfOtf,
     square_wave_one_third,
     square_wave,
 )
 import os
+import matplotlib.pyplot as plt
+from scipy.signal import find_peaks
+
+# not needed for generating (just reading/visualising)
+import streamlit as st
 
 
 def GetParams_20230410():  # uniform randomisation
@@ -115,7 +121,7 @@ def gen_sample_images():
     pixelsize_ratio = 1
 
     # Generation of the PSF with Besselj.
-    PSFo, OTFo = PsfOtf(w, opt.scale)
+    PSFo, OTFo = PsfOtf(w, opt.scale, opt)
     frames = SIMimages(
         opt,
         img,
@@ -131,8 +137,6 @@ def gen_sample_images():
 
 def read_sample_image():
     # read sample pattern, calculate mean of each three consecutive frames (1-3, 4-6, 7-9) and plot with streamlit
-    import streamlit as st
-    import matplotlib.pyplot as plt
 
     stack = io.imread("sim_image.tif")
     stack = exposure.rescale_intensity(stack, out_range="uint8")
@@ -168,8 +172,6 @@ def read_sample_image():
     curve = np.mean(stack[0], axis=0)
 
     # count peaks on curve and plot
-    from scipy.signal import find_peaks
-
     peaks = find_peaks(curve, height=0.5, distance=5)
     fig, ax = plt.subplots()
     ax.plot(curve)
@@ -180,8 +182,6 @@ def read_sample_image():
 
 def read_exp_sample_image():
     # read sample pattern, calculate mean of each three consecutive frames (1-3, 4-6, 7-9) and plot with streamlit
-    import streamlit as st
-    import matplotlib.pyplot as plt
 
     stack = io.imread(
         "plugins-branch/data/highlighter-april2024/highlighter-k2-80/right/image_10_April_2023_09_38_PM.tif"
@@ -202,7 +202,6 @@ def read_exp_sample_image():
 
     curve = np.mean(stack[0], axis=0)
     # count peaks on curve and plot
-    from scipy.signal import find_peaks
 
     peaks = find_peaks(curve, height=0.5, distance=10)
     fig, ax = plt.subplots()
@@ -216,10 +215,11 @@ def gen_sample_pattern():
     w = 512
     opt = GetParams_Exact()
 
-    PSFo, OTFo = PsfOtf(w, opt.scale)
+    opt.crop_factor = False
+    PSFo, OTFo = PsfOtf(w, opt.scale, opt)
 
     # opt.k2 = 70
-    opt.k2 = 80  # most used value so far
+    opt.k2 = 20  # most used value so far
     # opt.k2 = 90
     # opt.k2 = 100
     # pixelsize_ratio = 1.6
@@ -229,20 +229,28 @@ def gen_sample_pattern():
     # func = square_wave
     func = square_wave_one_third  # seems best for DMD
 
-    frames = SIMimage_patterns(
-        opt, w, PSFo, OTFo, func=func, pixelsize_ratio=pixelsize_ratio
-    )
+    # frames = SIMimage_patterns(
+    #     opt, w, PSFo, OTFo, func=func, pixelsize_ratio=pixelsize_ratio
+    # )
 
-    new_frames = []
-    for frame in frames:
-        frame = exposure.rescale_intensity(frame, out_range="uint8")
-        frame = img_as_ubyte(frame)
+    img = data.astronaut().mean(axis=2)
+    opt.Nframes = 100
+    opt.Nspeckles = 100
+    opt.crop_factor = False
+    frames = SIMimages_speckle(opt, img, PSFo, OTFo)
 
-        new_frames.append(frame)
-    frames = np.array(new_frames)
+    # new_frames = []
+    # for frame in frames:
+    #     frame = exposure.rescale_intensity(frame, out_range="uint8")
+    #     frame = img_as_ubyte(frame)
+    #     new_frames.append(frame)
+    # frames = np.array(new_frames)
+
+    frames = np.array(frames)
+    frames = exposure.rescale_intensity(frames, out_range="uint8")
 
     io.imsave(
-        f"plugins-branch/sim_patterns/patterns_pixelsize_ratio_{pixelsize_ratio}_k2_{opt.k2}_func_{func.__name__}.tif",
+        f"patterns.tif",
         frames,
     )
     print("generated sample pattern patterns.tif")
@@ -252,7 +260,7 @@ def gen_sample_pattern_loop():
     w = 512
     opt = GetParams_Exact()
 
-    PSFo, OTFo = PsfOtf(w, opt.scale)
+    PSFo, OTFo = PsfOtf(w, opt.scale, opt)
 
     k2_arr = [200]
     pixelsize_ratio_arr = [1.6, 1.7, 1.8]
@@ -284,25 +292,28 @@ def gen_sample_pattern_loop():
 
 def read_sample_pattern():
     # read sample pattern, calculate mean of each three consecutive frames (1-3, 4-6, 7-9) and plot with streamlit
-    import streamlit as st
-    import matplotlib.pyplot as plt
-
     stack = io.imread("patterns.tif")
-    for i in range(3):
-        st.text(f"min: {np.min(stack[i])}, max: {np.max(stack[i])}")
-        meanframe = np.mean(stack[i * 3 : (i + 1) * 3], axis=0)
-        st.text(f"min: {np.min(meanframe)}, max: {np.max(meanframe)}")
+
+    cols = st.columns(3)
+
+    with cols[0]:
         fig, ax = plt.subplots()
-        ax.imshow(meanframe, cmap="gray", vmin=0, vmax=255)
+        wf = stack.mean(axis=0)
+        st.text(f"min: {np.min(wf)}, max: {np.max(wf)}")
+        ax.imshow(wf, cmap="gray")
         st.pyplot(fig)
+
+    with cols[1]:
+        pass
 
 
 if __name__ == "__main__":
     # gen_sample_images()
     # read_sample_image()
     # read_exp_sample_image()
+    # st.set_page_config(layout="wide")
 
-    # gen_sample_pattern()
-    # read_sample_pattern()
+    gen_sample_pattern()
+    read_sample_pattern()
 
-    gen_sample_pattern_loop()
+    # gen_sample_pattern_loop()

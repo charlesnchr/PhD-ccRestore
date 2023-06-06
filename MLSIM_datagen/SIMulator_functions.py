@@ -2,12 +2,42 @@ import numpy as np
 from numpy import pi, cos, sin
 from numpy.fft import fft2, ifft2, fftshift, ifftshift
 
-from skimage import io, transform
+from skimage import io, draw, transform
 from scipy.signal import convolve2d
 import scipy.special
 
 
-def PsfOtf(w, scale):
+def Get_X_Y_MeshGrids(w, opt):
+    # TODO: these hard-coded values are not ideal
+    #  and this way of scaling the patterns is
+    #  likely going to lead to undesired behaviour
+
+    if opt.crop_factor:
+        crop_factor_x = 428 / 912
+        crop_factor_y = 684 / 1140
+
+        # data from dec 2022 acquired with DMD patterns with the below factors
+        # crop_factor_x = 1
+        # crop_factor_y = 1
+
+        # first version, december 2022
+        # wo = w / 2
+        # x = np.linspace(0, w - 1, 912)
+        # y = np.linspace(0, w - 1, 1140)
+        # [X, Y] = np.meshgrid(x, y)
+
+        x = np.linspace(0, crop_factor_x * 512 - 1, int(crop_factor_x * 912))
+        y = np.linspace(0, crop_factor_y * 512 - 1, int(crop_factor_y * 1140))
+        [X, Y] = np.meshgrid(x, y)
+    else:
+        x = np.linspace(0, w - 1, w)
+        y = np.linspace(0, w - 1, w)
+        X, Y = np.meshgrid(x, y)
+
+    return X, Y
+
+
+def PsfOtf(w, scale, opt):
     # AIM: To generate PSF and OTF using Bessel function
     # INPUT VARIABLES
     #   w: image size
@@ -17,14 +47,7 @@ def PsfOtf(w, scale):
     #   OTF2dc: system OTF
     eps = np.finfo(np.float64).eps
 
-    crop_factor_x = 428 / 912
-    crop_factor_y = 684 / 1140
-    # data from dec 2022 acquired with DMD patterns with the below factors
-    # crop_factor_x = 1
-    # crop_factor_y = 1
-    x = np.linspace(0, crop_factor_x * 512 - 1, int(crop_factor_x * 912))
-    y = np.linspace(0, crop_factor_y * 512 - 1, int(crop_factor_y * 1140))
-    [X, Y] = np.meshgrid(x, y)
+    X, Y = Get_X_Y_MeshGrids(w, opt)
 
     # Generation of the PSF with Besselj.
     R = np.sqrt(np.minimum(X, np.abs(X - w)) ** 2 + np.minimum(Y, np.abs(Y - w)) ** 2)
@@ -63,25 +86,8 @@ def SIMimages(opt, DIo, PSFo, OTFo, func=np.cos, pixelsize_ratio=1):
 
     w = DIo.shape[0]
     wo = w / 2
-    # TODO: these hard-coded values are not ideal
-    #  and this way of scaling the patterns is
-    #  likely going to lead to undesired behaviour
 
-    # first version, december 2022
-    # wo = w / 2
-    # x = np.linspace(0, w - 1, 912)
-    # y = np.linspace(0, w - 1, 1140)
-    # [X, Y] = np.meshgrid(x, y)
-
-    wo = w / 2
-    crop_factor_x = 428 / 912
-    crop_factor_y = 684 / 1140
-    # data from dec 2022 acquired with DMD patterns with the below factors
-    # crop_factor_x = 1
-    # crop_factor_y = 1
-    x = np.linspace(0, crop_factor_x * 512 - 1, int(crop_factor_x * 912))
-    y = np.linspace(0, crop_factor_y * 512 - 1, int(crop_factor_y * 1140))
-    [X, Y] = np.meshgrid(x, y)
+    X, Y = Get_X_Y_MeshGrids(w, opt)
 
     # Illuminating pattern
 
@@ -147,6 +153,75 @@ def SIMimages(opt, DIo, PSFo, OTFo, func=np.cos, pixelsize_ratio=1):
                 STnoisy = ST + NoiseFrac * nST
 
             frames.append(STnoisy.clip(0, 1))
+
+    return frames
+
+
+def GenSpeckle(dim, opt):
+    N = opt.Nspeckles
+    I = np.zeros((dim, dim))
+    randx = np.random.choice(
+        list(range(dim)) * np.ceil(N / dim).astype("int"), size=N, replace=False
+    )
+    randy = np.random.choice(
+        list(range(dim)) * np.ceil(N / dim).astype("int"), size=N, replace=False
+    )
+
+    for i in range(N):
+        x = randx[i]
+        y = randy[i]
+
+        r = np.random.randint(3, 5)
+        cr, cc = draw.ellipse(x, y, r, r, (dim, dim))
+        I[cr, cc] += 0.1
+    return I
+
+
+def SIMimages_speckle(opt, DIo, PSFo, OTFo):
+    # AIM: to generate raw sim images
+    # INPUT VARIABLES
+    #   k2: illumination frequency
+    #   DIo: specimen image
+    #   PSFo: system PSF
+    #   OTFo: system OTF
+    #   UsePSF: 1 (to blur SIM images by convloving with PSF)
+    #           0 (to blur SIM images by truncating its fourier content beyond OTF)
+    #   NoiseLevel: percentage noise level for generating gaussian noise
+    # OUTPUT VARIABLES
+    #   frames:  raw sim images
+    #   DIoTnoisy: noisy wide field image
+    #   DIoT: noise-free wide field image
+
+    w = DIo.shape[0]
+    wo = w / 2
+    X, Y = Get_X_Y_MeshGrids(w, opt)
+
+    # illumination patterns
+    frames = []
+    for i_a in range(opt.Nframes):
+        # illuminated signal
+        sig = GenSpeckle(
+            w, opt
+        )  # opt.meanInten[i_a] + opt.ampInten[i_a] * GenSpeckle(w)
+
+        sup_sig = DIo * sig  # superposed signal
+
+        # superposed (noise-free) Images
+        if opt.UsePSF == 1:
+            ST = conv2(sup_sig, PSFo, "same")
+        else:
+            ST = np.real(ifft2(fft2(sup_sig) * fftshift(OTFo)))
+
+        # Gaussian noise generation
+        aNoise = opt.NoiseLevel / 100  # noise
+        # SNR = 1/aNoise
+        # SNRdb = 20*log10(1/aNoise)
+
+        nST = np.random.normal(0, aNoise * np.std(ST, ddof=1), (w, w))
+        NoiseFrac = 1  # may be set to 0 to avoid noise addition
+        # noise added raw SIM images
+        STnoisy = ST + NoiseFrac * nST
+        frames.append(STnoisy)
 
     return frames
 
@@ -239,7 +314,7 @@ def SIMimage_patterns(opt, w, PSFo, OTFo, func=np.cos, pixelsize_ratio=1):
 
 def ApplyOTF(opt, Io):
     w = Io.shape[0]
-    psfGT, otfGT = PsfOtf(w, 1.8 * opt.scale)
+    psfGT, otfGT = PsfOtf(w, 1.8 * opt.scale, opt)
     newGT = np.real(ifft2(fft2(Io) * fftshift(otfGT)))
     return newGT
 
@@ -251,7 +326,7 @@ def ApplyOTF(opt, Io):
 
 # # Generation of the PSF with Besselj.
 
-# PSFo, OTFo = PsfOtf(w, opt.scale)
+# PSFo, OTFo = PsfOtf(w, opt.scale, opt)
 
 # DIo = Io.astype('float')
 
@@ -291,7 +366,7 @@ def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024, func=np.cos):
 
     # Generation of the PSF with Besselj.
 
-    PSFo, OTFo = PsfOtf(w, opt.scale)
+    PSFo, OTFo = PsfOtf(w, opt.scale, opt)
 
     frames = SIMimages(opt, DIo, PSFo, OTFo, func=func)
 
