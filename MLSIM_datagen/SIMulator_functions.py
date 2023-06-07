@@ -89,6 +89,7 @@ def SIMimages(opt, DIo, PSFo, OTFo, func=np.cos, pixelsize_ratio=1):
         w = DIo
         wo = w / 2
     else:
+        patterns = False
         w = DIo.shape[0]
         wo = w / 2
 
@@ -236,12 +237,17 @@ def SIMimages_speckle(opt, DIo, PSFo, OTFo):
 
 def GenSpots(dim, opt, xoffset, yoffset):
     N = opt.Nspots
+    spotSize = opt.spotSize
     I = np.zeros((dim, dim))
 
     # fill in spots in partitions of NxN
     for row in range(0, dim - N, N):
         for col in range(0, dim - N, N):
-            I[row + xoffset, col + yoffset] = 1
+            for spot_x in range(spotSize):
+                for spot_y in range(spotSize):
+                    # prevent index out of bounds
+                    if row + xoffset + spot_x < dim and col + yoffset + spot_y < dim:
+                        I[row + xoffset + spot_x, col + yoffset + spot_y] = 1
     return I
 
 
@@ -249,7 +255,7 @@ def SIMimages_spots(opt, DIo, PSFo, OTFo):
     # AIM: to generate raw sim images
     # INPUT VARIABLES
     #   k2: illumination frequency
-    #   DIo: specimen image
+    #   DIo: specimen image or integer (dimension) if only patterns are wanted
     #   PSFo: system PSF
     #   OTFo: system OTF
     #   UsePSF: 1 (to blur SIM images by convloving with PSF)
@@ -260,8 +266,15 @@ def SIMimages_spots(opt, DIo, PSFo, OTFo):
     #   DIoTnoisy: noisy wide field image
     #   DIoT: noise-free wide field image
 
-    w = DIo.shape[0]
-    wo = w / 2
+    if type(DIo) == int:
+        patterns = True
+        w = DIo
+        wo = w / 2
+    else:
+        patterns = False
+        w = DIo.shape[0]
+        wo = w / 2
+
     X, Y = Get_X_Y_MeshGrids(w, opt)
 
     N = opt.Nspots
@@ -273,24 +286,27 @@ def SIMimages_spots(opt, DIo, PSFo, OTFo):
         # illuminated signal
         sig = GenSpots(w, opt, *offsets[i_a])
 
-        sup_sig = DIo * sig  # superposed signal
-
-        # superposed (noise-free) Images
-        if opt.UsePSF == 1:
-            ST = conv2(sup_sig, PSFo, "same")
+        if patterns:
+            frames.append(sig)
         else:
-            ST = np.real(ifft2(fft2(sup_sig) * fftshift(OTFo)))
+            sup_sig = DIo * sig  # superposed signal
 
-        # Gaussian noise generation
-        aNoise = opt.NoiseLevel / 100  # noise
-        # SNR = 1/aNoise
-        # SNRdb = 20*log10(1/aNoise)
+            # superposed (noise-free) Images
+            if opt.UsePSF == 1:
+                ST = conv2(sup_sig, PSFo, "same")
+            else:
+                ST = np.real(ifft2(fft2(sup_sig) * fftshift(OTFo)))
 
-        nST = np.random.normal(0, aNoise * np.std(ST, ddof=1), (w, w))
-        NoiseFrac = 1  # may be set to 0 to avoid noise addition
-        # noise added raw SIM images
-        STnoisy = ST + NoiseFrac * nST
-        frames.append(STnoisy)
+            # Gaussian noise generation
+            aNoise = opt.NoiseLevel / 100  # noise
+            # SNR = 1/aNoise
+            # SNRdb = 20*log10(1/aNoise)
+
+            nST = np.random.normal(0, aNoise * np.std(ST, ddof=1), (w, w))
+            NoiseFrac = 1  # may be set to 0 to avoid noise addition
+            # noise added raw SIM images
+            STnoisy = ST + NoiseFrac * nST
+            frames.append(STnoisy)
 
     return frames
 

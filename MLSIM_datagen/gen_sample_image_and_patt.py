@@ -16,7 +16,6 @@ from SIMulator_functions import (
     SIMimages,
     SIMimages_speckle,
     SIMimages_spots,
-    SIMimage_patterns,
     PsfOtf,
     square_wave_one_third,
     square_wave,
@@ -210,9 +209,8 @@ def read_exp_sample_image():
     st.text(f"peaks: {len(peaks[0])}")
 
 
-def gen_sample_pattern():
+def gen_sample_pattern(opt):
     w = 512
-    opt = GetParams_Exact()
 
     opt.crop_factor = False
     PSFo, OTFo = PsfOtf(w, opt.scale, opt)
@@ -228,10 +226,10 @@ def gen_sample_pattern():
     # func = square_wave
     func = square_wave_one_third  # seems best for DMD
 
-    opt.noStripes = False
-    frames = SIMimages(opt, w, PSFo, OTFo, func=func, pixelsize_ratio=pixelsize_ratio)
+    # opt.noStripes = False
+    # frames = SIMimages(opt, w, PSFo, OTFo, func=func, pixelsize_ratio=pixelsize_ratio)
 
-    # img = data.astronaut().mean(axis=2)
+    img = data.astronaut().mean(axis=2)
 
     # speckles
     # opt.Nframes = 100
@@ -239,10 +237,7 @@ def gen_sample_pattern():
     # opt.crop_factor = False
     # frames = SIMimages_speckle(opt, img, PSFo, OTFo)
 
-    # opt.Nspots = 3  # 3x3 spot traversal
-    # opt.Nframes = opt.Nspots**2
-    # opt.crop_factor = False
-    # frames = SIMimages_spots(opt, img, PSFo, OTFo)
+    frames = SIMimages_spots(opt, img.shape[0], PSFo, OTFo)
 
     # new_frames = []
     # for frame in frames:
@@ -276,7 +271,7 @@ def gen_sample_pattern_loop():
             for func in func_arr:
                 opt.k2 = k2
 
-                frames = SIMimage_patterns(
+                frames = SIMimages(
                     opt, w, PSFo, OTFo, func=func, pixelsize_ratio=pixelsize_ratio
                 )
 
@@ -295,9 +290,12 @@ def gen_sample_pattern_loop():
                 print("generated sample pattern patterns.tif")
 
 
-def read_sample_pattern():
+def read_sample_pattern(opt):
     # read sample pattern, calculate mean of each three consecutive frames (1-3, 4-6, 7-9) and plot with streamlit
     stack = io.imread("patterns.tif")
+
+    nspots = opt.Nspots
+    spotSize = opt.spotSize
 
     cols = st.columns(3)
 
@@ -307,19 +305,40 @@ def read_sample_pattern():
         wf = stack[0]
         st.text(f"min: {np.min(wf)}, max: {np.max(wf)}")
         ax.imshow(wf, cmap="gray")
-        st.pyplot(fig)
+
+        plt.title(f"Spot size {spotSize}x{spotSize}, pattern {nspots}x{nspots}")
+        plt.savefig(
+            f"{nspots}x{nspots}_spot_size_{spotSize}x{spotSize}.png",
+            dpi=300,
+            bbox_inches="tight",
+            pad_inches=0,
+        )
+
+        st.pyplot(fig, dpi=300)
 
     with cols[1]:
-        pass
+        fig, ax = plt.subplots()
+        wf = stack.mean(axis=0)
+        st.text(f"min: {np.min(wf)}, max: {np.max(wf)}")
+        ax.imshow(wf, cmap="gray")
+        plt.title("Wide-field projection")
+        st.pyplot(fig, dpi=300)
 
 
 if __name__ == "__main__":
+    st.set_page_config(layout="wide")
+
+    opt = GetParams_Exact()
+    opt.Nspots = 10
+    opt.spotSize = 1
+    opt.Nframes = opt.Nspots**2
+    opt.crop_factor = False
+
     # gen_sample_images()
     # read_sample_image()
     # read_exp_sample_image()
-    st.set_page_config(layout="wide")
 
-    gen_sample_pattern()
-    read_sample_pattern()
+    gen_sample_pattern(opt)
+    read_sample_pattern(opt)
 
     # gen_sample_pattern_loop()
