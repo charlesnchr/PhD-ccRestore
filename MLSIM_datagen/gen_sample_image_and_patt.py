@@ -311,7 +311,7 @@ if __name__ == "__main__":
     # gen_sample_images()
     # read_sample_image()
     # read_exp_sample_image()
-    # st.set_page_config(layout="wide")
+    st.set_page_config(layout="wide")
 
     gen_sample_pattern()
     read_sample_pattern()
