@@ -15,6 +15,7 @@ import argparse
 from SIMulator_functions import (
     SIMimages,
     SIMimages_speckle,
+    SIMimages_spots,
     SIMimage_patterns,
     PsfOtf,
     square_wave_one_third,
@@ -229,15 +230,21 @@ def gen_sample_pattern():
     # func = square_wave
     func = square_wave_one_third  # seems best for DMD
 
-    # frames = SIMimage_patterns(
-    #     opt, w, PSFo, OTFo, func=func, pixelsize_ratio=pixelsize_ratio
-    # )
+    opt.noStripes = False
+    frames = SIMimages(opt, w, PSFo, OTFo, func=func, pixelsize_ratio=pixelsize_ratio)
 
-    img = data.astronaut().mean(axis=2)
-    opt.Nframes = 100
-    opt.Nspeckles = 100
-    opt.crop_factor = False
-    frames = SIMimages_speckle(opt, img, PSFo, OTFo)
+    # img = data.astronaut().mean(axis=2)
+
+    # speckles
+    # opt.Nframes = 100
+    # opt.Nspeckles = 100
+    # opt.crop_factor = False
+    # frames = SIMimages_speckle(opt, img, PSFo, OTFo)
+
+    # opt.Nspots = 3  # 3x3 spot traversal
+    # opt.Nframes = opt.Nspots**2
+    # opt.crop_factor = False
+    # frames = SIMimages_spots(opt, img, PSFo, OTFo)
 
     # new_frames = []
     # for frame in frames:
@@ -298,7 +305,8 @@ def read_sample_pattern():
 
     with cols[0]:
         fig, ax = plt.subplots()
-        wf = stack.mean(axis=0)
+        # wf = stack.mean(axis=0)
+        wf = stack[0]
         st.text(f"min: {np.min(wf)}, max: {np.max(wf)}")
         ax.imshow(wf, cmap="gray")
         st.pyplot(fig)
