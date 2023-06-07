@@ -62,7 +62,6 @@ def GetParams_20230410():  # uniform randomisation
     opt.UsePSF = 0
     # include OTF and GT in stack
     opt.OTF_and_GT = True
-    opt.applyOTFtoGT = False
     opt.noStripes = False
 
     return opt
@@ -101,7 +100,6 @@ def GetParams_Exact():  # uniform randomisation
     opt.UsePSF = 0
     # include OTF and GT in stack
     opt.OTF_and_GT = True
-    opt.applyOTFtoGT = True
     opt.noStripes = False
 
     return opt

@@ -304,39 +304,6 @@ def square_wave_one_third(x):
     # sums to 0
     return 2 * (np.heaviside(np.cos(x) - np.cos(1 * np.pi / 3), 0) - 1 / 3)
 
-# %%
-def Generate_SIM_Image(opt, Io):
-
-    w = Io.shape[0]
-
-    # Generation of the PSF with Besselj.
-
-    PSFo, OTFo = PsfOtf(w, opt.scale, opt)
-
-    DIo = Io.astype('float')
-
-    frames = SIMimages(opt, DIo, PSFo, OTFo)
-
-    if opt.OTF_and_GT:
-    frames.append(OTFo)
-    if opt.applyOTFtoGT:
-    frames.append(ApplyOTF(opt,Io))
-    else:
-    frames.append(Io)
-    stack = np.array(frames)
-
-    # normalise
-    for i in range(len(stack)):
-    stack[i] = (stack[i] - np.min(stack[i])) / \
-    (np.max(stack[i]) - np.min(stack[i]))
-
-    stack = (stack * 255).astype('uint8')
-
-    if opt.outputname is not None:
-    io.imsave(opt.outputname, stack)
-
-    return stack
-
 
 def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024, func=np.cos):
     DIo = Io.astype("float")
