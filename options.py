@@ -47,6 +47,9 @@ parser.add_argument(
 parser.add_argument(
     "--imageSize", nargs="+", type=int, default=24, help="the low resolution image size"
 )
+parser.add_argument(
+    "--patchSize", type=int, default=None, help="patch size for of high res output (i.e. low res is patchSize/scale)"
+)
 parser.add_argument("--weights", type=str, default="", help="model to retrain from")
 parser.add_argument(
     "--basedir",

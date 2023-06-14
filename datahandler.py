@@ -618,6 +618,7 @@ def load_Pickle_dataset(root, category, opt):
     return dataloader
 
 
+
 class GenericPickleDataset(Dataset):
     def __init__(
         self, root, category, opt
@@ -980,6 +981,32 @@ class Fourier_SIM_dataset(Dataset):
         self.norm = opt.norm
         self.out = opt.out
         self.imageSize = opt.imageSize
+        self.patchSize = opt.patchSize # different to image size as of May 2023
+
+    def get_patch(self, lr, hr, img1, img2, patch_size=96, scale=4):
+        iw, ih = lr.shape[2],lr.shape[1]
+        tp = patch_size
+        ip = tp // scale
+
+        ix = random.randrange(0, iw - ip + 1)
+        iy = random.randrange(0, ih - ip + 1)
+
+
+        tx, ty = scale * ix, scale * iy
+
+        # lr = transforms.functional.crop(lr, iy, ix, ip, ip)
+        # hr = transforms.functional.crop(hr, ty, tx, tp, tp)
+        # lr = lr.crop((ix,iy,ix+ip,iy+ip))
+        # hr = hr.crop((tx,ty,tx+tp,ty+tp))
+
+        return [
+            lr[:,iy:iy + ip, ix:ix + ip],
+            hr[:,ty:ty + tp, tx:tx + tp],
+            img1[:,iy:iy + ip, ix:ix + ip],
+            img2[:,iy:iy + ip, ix:ix + ip]
+        ]
+
+
 
     def __getitem__(self, index):
         stack = io.imread(self.images[index])
@@ -1074,6 +1101,8 @@ class Fourier_SIM_dataset(Dataset):
 
         inputimg = inputimg.astype("float") / np.max(inputimg)  # used to be /255
         gt = gt.astype("float") / np.max(gt)  # used to be /255
+
+
         widefield = np.mean(inputimg, 0)
 
         if len(stack) > self.nch_in + 2:
@@ -1123,6 +1152,11 @@ class Fourier_SIM_dataset(Dataset):
                         * (inputimg[i] - torch.min(inputimg[i]))
                         / (torch.max(inputimg[i]) - torch.min(inputimg[i]))
                     )
+
+
+        if self.patchSize is not None:
+            inputimg, gt, simimg, widefield = self.get_patch(inputimg, gt, simimg, widefield, patch_size=self.patchSize, scale=self.scale)
+
 
         if "simin_simout" in self.task:
             return (
