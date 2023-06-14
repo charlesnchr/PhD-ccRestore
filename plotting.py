@@ -1,7 +1,7 @@
 import torch
 import matplotlib.pyplot as plt
 import torchvision
-import skimage
+from skimage import transform
 from skimage.metrics import structural_similarity
 
 # from skimage import measure
@@ -219,13 +219,29 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                         sr = sr[sr.shape[0] // 2]
                         hr = hr[hr.shape[0] // 2]
 
-                    ### Common commands
-                    lr, bc, sr, hr = toPIL(lr), toPIL(bc), toPIL(sr), toPIL(hr)
 
                     if opt.scale == 2:
-                        lr = lr.resize((1024, 1024), resample=Image.BICUBIC)
-                        bc = bc.resize((1024, 1024), resample=Image.BICUBIC)
-                        hr = hr.resize((1024, 1024), resample=Image.BICUBIC)
+                        if opt.patchSize is None:
+                            # multiply by opt.scale (n.b. imageSize is low res size, but if patchsize is used, it's for
+                                                     # high res target)
+                            gt_dim = opt.imageSize
+                            if type(gt_dim) is int:
+                                gt_dim = (gt_dim, gt_dim)
+                            gt_dim = [int(x * opt.scale) for x in gt_dim]
+                        else:
+                            gt_dim = opt.patchSize
+                            if type(gt_dim) is int:
+                                gt_dim = (gt_dim, gt_dim)
+
+                        lr = transform.resize(lr.squeeze().numpy(), gt_dim, anti_aliasing=True, order=3)
+                        bc = transform.resize(bc.squeeze().numpy(), gt_dim, anti_aliasing=True, order=3)
+                        hr = transform.resize(hr.squeeze().numpy(), gt_dim, anti_aliasing=True, order=3)
+                        lr = torch.from_numpy(lr)
+                        bc = torch.from_numpy(bc)
+                        hr = torch.from_numpy(hr)
+
+                    ### Common commands
+                    lr, bc, sr, hr = toPIL(lr), toPIL(bc), toPIL(sr), toPIL(hr)
 
                     if makeplotBool:
                         plt.figure(figsize=(10, 5))

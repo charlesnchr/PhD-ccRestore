@@ -17,11 +17,18 @@ def PsfOtf(w, scale):
     #   OTF2dc: system OTF
     eps = np.finfo(np.float64).eps
 
-    crop_factor_x = 428 / 912
-    crop_factor_y = 684 / 1140
     # data from dec 2022 acquired with DMD patterns with the below factors
     # crop_factor_x = 1
     # crop_factor_y = 1
+
+    # used since April 2023 I believe
+    # crop_factor_x = 428 / 912
+    # crop_factor_y = 684 / 1140
+
+    # trying May 2023 for binning 1
+    crop_factor_x = 856 / 912
+    crop_factor_y = 1368 / 1140
+
     x = np.linspace(0, crop_factor_x * 512 - 1, int(crop_factor_x * 912))
     y = np.linspace(0, crop_factor_y * 512 - 1, int(crop_factor_y * 1140))
     [X, Y] = np.meshgrid(x, y)
@@ -74,11 +81,20 @@ def SIMimages(opt, DIo, PSFo, OTFo, func=np.cos, pixelsize_ratio=1):
     # [X, Y] = np.meshgrid(x, y)
 
     wo = w / 2
-    crop_factor_x = 428 / 912
-    crop_factor_y = 684 / 1140
+
+
     # data from dec 2022 acquired with DMD patterns with the below factors
     # crop_factor_x = 1
     # crop_factor_y = 1
+
+    # used since April 2023 I believe
+    # crop_factor_x = 428 / 912
+    # crop_factor_y = 684 / 1140
+
+    # trying May 2023 for binning 1
+    crop_factor_x = 856 / 912
+    crop_factor_y = 1368 / 1140
+
     x = np.linspace(0, crop_factor_x * 512 - 1, int(crop_factor_x * 912))
     y = np.linspace(0, crop_factor_y * 512 - 1, int(crop_factor_y * 1140))
     [X, Y] = np.meshgrid(x, y)
@@ -305,10 +321,10 @@ def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024, func=np.cos):
 
         if gt_dim > in_dim:  # assumes a upscale factor of 2 is given
             # gt_img = skimage.transform.resize(gt_img, (gt_dim,gt_dim), order=3)
-            gt11 = gt_img[:in_dim, :in_dim]
-            gt21 = gt_img[in_dim:, :in_dim]
-            gt12 = gt_img[:in_dim, in_dim:]
-            gt22 = gt_img[in_dim:, in_dim:]
+            gt11 = gt_img[:in_dim[0], :in_dim[1]]
+            gt21 = gt_img[in_dim[0]:, :in_dim[1]]
+            gt12 = gt_img[:in_dim[0], in_dim[1]:]
+            gt22 = gt_img[in_dim[0]:, in_dim[1]:]
             # frames.extend([gt11,gt21,gt12,gt22])
             frames.append(gt11)
             frames.append(gt21)
