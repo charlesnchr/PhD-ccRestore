@@ -42,7 +42,7 @@ def DMDPixelTransform(input_img, dmdMapping, xoffset=0, yoffset=0):
     return transformed_img
 
 
-def Get_X_Y_MeshGrids(w, opt, pattern_type="stripe"):
+def Get_X_Y_MeshGrids(w, opt, forPSF=False):
     # TODO: these hard-coded values are not ideal
     #  and this way of scaling the patterns is
     #  likely going to lead to undesired behaviour
@@ -65,7 +65,7 @@ def Get_X_Y_MeshGrids(w, opt, pattern_type="stripe"):
         # y = np.linspace(0, w - 1, 1140)
         # [X, Y] = np.meshgrid(x, y)
 
-        if pattern_type == "stripe" and opt.dmdMapping > 0:
+        if (opt.dmdMapping == 2 or (opt.dmdMapping == 1 and opt.SIMmodality == 'stripes'))  and not forPSF:
             padding = 4
         else:
             padding = 1
@@ -85,7 +85,7 @@ def Get_X_Y_MeshGrids(w, opt, pattern_type="stripe"):
     return X, Y
 
 
-def PsfOtf(w, scale, opt, X=None, Y=None, pattern_type="stripe"):
+def PsfOtf(w, opt):
     # AIM: To generate PSF and OTF using Bessel function
     # INPUT VARIABLES
     #   w: image size
@@ -95,8 +95,9 @@ def PsfOtf(w, scale, opt, X=None, Y=None, pattern_type="stripe"):
     #   OTF2dc: system OTF
     eps = np.finfo(np.float64).eps
 
-    if X is None or Y is None:
-        X, Y = Get_X_Y_MeshGrids(w, opt, pattern_type=pattern_type)
+    X, Y = Get_X_Y_MeshGrids(w, opt, forPSF=True)
+
+    scale = opt.PSFOTFscale
 
     # Generation of the PSF with Besselj.
     R = np.sqrt(np.minimum(X, np.abs(X - w)) ** 2 + np.minimum(Y, np.abs(Y - w)) ** 2)
@@ -118,7 +119,7 @@ def conv2(x, y, mode="same"):
     return np.rot90(convolve2d(np.rot90(x, 2), np.rot90(y, 2), mode=mode), 2)
 
 
-def SIMimages(opt, DIo, PSFo=None, OTFo=None, func=np.cos, pixelsize_ratio=1):
+def SIMimages(opt, DIo, func=np.cos, pixelsize_ratio=1):
     # AIM: to generate raw sim images
     # INPUT VARIABLES
     #   k2: illumination frequency
@@ -142,10 +143,9 @@ def SIMimages(opt, DIo, PSFo=None, OTFo=None, func=np.cos, pixelsize_ratio=1):
         w = DIo.shape[0]
         wo = w / 2
 
-    X, Y = Get_X_Y_MeshGrids(w, opt, pattern_type="stripe")
+    X, Y = Get_X_Y_MeshGrids(w, opt)
 
-    if PSFo is None or OTFo is None:
-        PSFo, OTFo = PsfOtf(w, opt.scale, opt, X, Y)
+    PSFo, OTFo = PsfOtf(w, opt)
 
     # Illuminating pattern
 
@@ -184,6 +184,33 @@ def SIMimages(opt, DIo, PSFo=None, OTFo=None, func=np.cos, pixelsize_ratio=1):
             else:
                 sig = 1  # simulating widefield
 
+            # whether to transform sig for dmd
+            if opt.dmdMapping > 0:
+            # crop to upper left quadrant if padding was added
+                if opt.dmdMapping == 1:
+                    sig = DMDPixelTransform(
+                        sig,
+                        opt.dmdMapping,
+                        xoffset=-sig.shape[1] // 2,
+                        yoffset=-sig.shape[0] // 2,
+                    )
+                    sig = sig[: sig.shape[0] // 4, : sig.shape[1] // 4]
+                elif opt.dmdMapping == 2:
+                    # rotate image by 45 degrees
+                    rotated_image = transform.rotate(sig, -45)
+
+                    rows, cols = rotated_image.shape[0], rotated_image.shape[1]
+
+                    # crop centre to avoid black corners
+                    row_start = rows // 4 + rows // 8
+                    row_end = row_start + rows // 4
+                    col_start = cols // 4 + cols // 8
+                    col_end = col_start + cols // 4
+
+                    # Crop the center of the image
+                    sig = rotated_image[row_start:row_end, col_start:col_end]
+
+
             if opt.patterns:
                 frame = sig
             else:
@@ -215,30 +242,6 @@ def SIMimages(opt, DIo, PSFo=None, OTFo=None, func=np.cos, pixelsize_ratio=1):
 
                 frame = STnoisy.clip(0, 1)
 
-            # crop to upper left quadrant if padding was added
-            if opt.dmdMapping > 0:
-                if opt.dmdMapping == 1:
-                    frame = DMDPixelTransform(
-                        frame,
-                        opt.dmdMapping,
-                        xoffset=-frame.shape[1] // 2,
-                        yoffset=-frame.shape[0] // 2,
-                    )
-                    frame = frame[: frame.shape[0] // 4, : frame.shape[1] // 4]
-                elif opt.dmdMapping == 2:
-                    # rotate image by 45 degrees
-                    rotated_image = transform.rotate(frame, -45)
-
-                    rows, cols = rotated_image.shape[0], rotated_image.shape[1]
-
-                    # crop centre to avoid black corners
-                    row_start = rows // 4 + rows // 8
-                    row_end = row_start + rows // 4
-                    col_start = cols // 4 + cols // 8
-                    col_end = col_start + cols // 4
-
-                    # Crop the center of the image
-                    frame = rotated_image[row_start:row_end, col_start:col_end]
 
             frames.append(frame)
 
@@ -265,7 +268,7 @@ def GenSpeckle(dim, opt):
     return I
 
 
-def SIMimages_speckle(opt, DIo, PSFo, OTFo):
+def SIMimages_speckle(opt, DIo):
     # AIM: to generate raw sim images
     # INPUT VARIABLES
     #   k2: illumination frequency
@@ -281,11 +284,9 @@ def SIMimages_speckle(opt, DIo, PSFo, OTFo):
     #   DIoT: noise-free wide field image
 
     w = DIo.shape[0]
-    wo = w / 2
-    X, Y = Get_X_Y_MeshGrids(w, opt, pattern_type="speckle")
+    X, Y = Get_X_Y_MeshGrids(w, opt)
 
-    if PSFo is None or OTFo is None:
-        PSFo, OTFo = PsfOtf(w, opt.scale, opt, X, Y)
+    PSFo, OTFo = PsfOtf(w, opt)
 
     # illumination patterns
     frames = []
@@ -360,7 +361,7 @@ def GenSpots(rows, cols, Nspots, spotSize, dmdMapping, xoffset, yoffset):
     return I
 
 
-def SIMimages_spots(opt, DIo, PSFo=None, OTFo=None):
+def SIMimages_spots(opt, DIo):
     # AIM: to generate raw sim images
     # INPUT VARIABLES
     #   k2: illumination frequency
@@ -376,24 +377,18 @@ def SIMimages_spots(opt, DIo, PSFo=None, OTFo=None):
     #   DIoT: noise-free wide field image
 
     if type(DIo) == int:
-        opt.patterns = True
         w = DIo
-        wo = w / 2
     else:
-        opt.patterns = False
         w = DIo.shape[0]
-        wo = w / 2
 
-    if opt.dmdMapping == 2:
-        X, Y = Get_X_Y_MeshGrids(w, opt, pattern_type="stripe")
-    else:
-        X, Y = Get_X_Y_MeshGrids(w, opt, pattern_type="spots")
+    X, Y = Get_X_Y_MeshGrids(w, opt)
 
-    if PSFo is None or OTFo is None:
-        PSFo, OTFo = PsfOtf(w, opt.scale, opt, X, Y)
+    PSFo, OTFo = PsfOtf(w, opt)
 
     N = opt.Nspots
-    offsets = [(x, y) for x in range(0, N) for y in range(0, N)]
+
+    # offsets depending on spot size
+    offsets = [(x, y) for x in range(0, N, opt.spotSize) for y in range(0, N, opt.spotSize)]
 
     t0 = time.perf_counter()
 
@@ -411,32 +406,13 @@ def SIMimages_spots(opt, DIo, PSFo=None, OTFo=None):
             *offsets[i_a],
         )
 
-        if opt.patterns:
-            frame = sig
-        else:
-            sup_sig = DIo * sig  # superposed signal
+        if not opt.patterns: # pure patterns for reference and DMD control
+            sig = opt.meanInten + opt.ampInten * sig
 
-            # superposed (noise-free) Images
-            if opt.UsePSF == 1:
-                ST = conv2(sup_sig, PSFo, "same")
-            else:
-                ST = np.real(ifft2(fft2(sup_sig) * fftshift(OTFo)))
-
-            # Gaussian noise generation
-            aNoise = opt.NoiseLevel / 100  # noise
-            # SNR = 1/aNoise
-            # SNRdb = 20*log10(1/aNoise)
-
-            nST = np.random.normal(0, aNoise * np.std(ST, ddof=1), (w, w))
-            NoiseFrac = 1  # may be set to 0 to avoid noise addition
-            # noise added raw SIM images
-            STnoisy = ST + NoiseFrac * nST
-
-            frame = STnoisy.clip(0, 1)
-
+        # modify sig if padding was added
         if opt.dmdMapping == 2:
             # rotate image by 45 degrees
-            rotated_image = transform.rotate(frame, -45)
+            rotated_image = transform.rotate(sig, -45)
 
             rotated_image = img_as_float(rotated_image)
 
@@ -449,11 +425,45 @@ def SIMimages_spots(opt, DIo, PSFo=None, OTFo=None):
             col_end = col_start + cols // 4
 
             # Crop the center of the image
-            frame = rotated_image[row_start:row_end, col_start:col_end]
+            sig = rotated_image[row_start:row_end, col_start:col_end]
 
-            # clip to 0-1
-            frame = frame.clip(0, 1)
-            frame = img_as_ubyte(frame)
+            # don't think this is needed
+            # # clip to 0-1
+            # sig = sig.clip(0, 1)
+            # sig = img_as_ubyte(sig)
+
+        if opt.patterns:
+            frame = sig
+        else:
+            sup_sig = DIo * sig  # superposed signal
+
+            # superposed (noise-free) Images
+            if opt.UsePSF == 1:
+                ST = conv2(sup_sig, PSFo, "same")
+            else:
+                ST = np.real(ifft2(fft2(sup_sig) * fftshift(OTFo)))
+
+            # Noise generation
+            if opt.usePoissonNoise:
+                # Poisson
+                vals = 2 ** np.ceil(
+                    np.log2(opt.NoiseLevel)
+                )  # NoiseLevel could be 200 for Poisson: degradation seems similar to Noiselevel 20 for Gaussian
+                STnoisy = np.random.poisson(ST * vals) / float(vals)
+            else:
+                # Gaussian
+                aNoise = opt.NoiseLevel / 100  # noise
+                # SNR = 1/aNoise
+                # SNRdb = 20*log10(1/aNoise)
+
+                nST = np.random.normal(0, aNoise * np.std(ST, ddof=1), (ST.shape))
+                NoiseFrac = 1  # may be set to 0 to avoid noise addition
+                # noise added raw SIM images
+                STnoisy = ST + NoiseFrac * nST
+
+
+            frame = STnoisy.clip(0, 1)
+
 
         frames.append(frame)
 
@@ -483,11 +493,17 @@ def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024, func=np.cos):
     w = DIo.shape[0]
 
     # Generation of the PSF with Besselj.
-    PSFo, OTFo = PsfOtf(w, opt.scale, opt, pattern_type="stripe")
+    PSFo, OTFo = PsfOtf(w, opt)
 
-    frames = SIMimages(opt, DIo, func=func)
 
-    if opt.OTF_and_GT:
+    if opt.SIMmodality == "stripes":
+        frames = SIMimages(opt, DIo, func=func)
+    elif opt.SIMmodality == "spots":
+        frames = SIMimages_spots(opt, DIo)
+    elif opt.SIMmodality == "speckle":
+        frames = SIMimages_speckle(opt, DIo)
+
+    if opt.OTF_and_GT and not opt.patterns:
         frames.append(OTFo)
 
         if type(gt_dim) is int:
@@ -518,10 +534,8 @@ def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024, func=np.cos):
     # (np.max(stack[i]) - np.min(stack[i]))
 
     # normalised SIM stack
-    simstack = stack[: opt.Nangles * opt.Nshifts]
-    stack[: opt.Nangles * opt.Nshifts] = (simstack - np.min(simstack)) / (
-        np.max(simstack) - np.min(simstack)
-    )
+    simstack = stack[: opt.Nframes]
+    stack[: opt.Nframes] = (simstack - np.min(simstack)) / ( np.max(simstack) - np.min(simstack))
 
     # normalised gt
     if gt_dim > in_dim:

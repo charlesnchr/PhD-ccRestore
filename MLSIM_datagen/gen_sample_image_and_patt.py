@@ -225,7 +225,8 @@ def gen_sample_pattern(opt):
 
     # regular stripes
     opt.noStripes = False
-    # frames = SIMimages(opt, w, func=func, pixelsize_ratio=pixelsize_ratio)
+    breakpoint()
+    frames = SIMimages(opt, w, func=func, pixelsize_ratio=pixelsize_ratio)
 
     # speckles
     # opt.Nframes = 100
@@ -233,7 +234,7 @@ def gen_sample_pattern(opt):
     # opt.crop_factor = False
     # frames = SIMimages_speckle(opt, img, PSFo, OTFo)
 
-    frames = SIMimages_spots(opt, img.shape[0])
+    # frames = SIMimages_spots(opt, img.shape[0])
 
     # new_frames = []
     # for frame in frames:
@@ -257,7 +258,7 @@ def gen_sample_pattern_loop_stripes(opt):
     # opt = GetParams_Exact()
 
     opt.patterns = True
-    PSFo, OTFo = PsfOtf(w, opt.scale, opt)
+    PSFo, OTFo = PsfOtf(w, opt)
 
     k2_arr = [20, 50, 80, 200]
     pixelsize_ratio_arr = [1]
@@ -288,12 +289,11 @@ def gen_sample_pattern_loop_stripes(opt):
                     )
                     print("generated sample pattern patterns.tif")
 
-
 def gen_sample_pattern_loop_spots(opt):
     w = 512
 
     opt.patterns = True
-    PSFo, OTFo = PsfOtf(w, opt.scale, opt)
+    PSFo, OTFo = PsfOtf(w, opt)
 
     # spotSize_arr = [1, 2]
     # Nspots_arr = [3, 5, 8, 10]
@@ -309,7 +309,7 @@ def gen_sample_pattern_loop_spots(opt):
                 opt.Nspots = Nspots
                 opt.Nframes = 2  # opt.Nspots**2
                 opt.dmdMapping = dmdMapping
-                frames = SIMimages_spots(opt, w, PSFo, OTFo)
+                frames = SIMimages_spots(opt, w)
 
                 new_frames = []
                 for frame in frames:
@@ -389,7 +389,7 @@ if __name__ == "__main__":
     # read_sample_image()
     # read_exp_sample_image()
 
-    gen_sample_pattern_loop_stripes(opt)
+    # gen_sample_pattern_loop_stripes(opt)
     # gen_sample_pattern_loop_spots(opt)
 
     # opt.dmdMapping = False

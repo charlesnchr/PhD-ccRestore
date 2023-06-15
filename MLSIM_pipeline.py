@@ -34,11 +34,18 @@ parser.add_argument("--datagen_workers", type=int, default=8, help="")
 parser.add_argument("--ext", nargs="+", default=["png"])
 
 
-# SIM options to control from command line
+## SIM options to control from command line
+
+# stripes
 parser.add_argument("--Nshifts", type=int, default=3)
 parser.add_argument("--Nangles", type=int, default=3)
 parser.add_argument("--k2", type=float, default=130.0)
 parser.add_argument("--k2_err", type=float, default=15.0)
+
+# spots
+parser.add_argument("--Nspots", type=int, default=5)
+parser.add_argument("--spotSize", type=int, default=1)
+
 parser.add_argument("--PSFOTFscale", type=float, default=0.6)
 parser.add_argument("--ModFac", type=float, default=0.5)
 parser.add_argument("--usePSF", type=int, default=0)
@@ -60,6 +67,16 @@ parser.add_argument("--applyOTFtoGT", action="store_true")
 parser.add_argument("--noStripes", action="store_true")
 parser.add_argument("--seqSIM", action="store_true")
 parser.add_argument("--skip_datagen", action="store_true")
+parser.add_argument("--SIMmodality", type=str, default="stripes", help="SIM modality", choices=["stripes", "spots", "speckle"])
+parser.add_argument("--patterns", action="store_true", help="Only illumination patterns")
+
+# DMD options
+parser.add_argument("--crop_factor", action="store_true", help="Crop factor for DMD coordinates")
+parser.add_argument("--dmdMapping", default=0, type=int, help="""whether to map image to DMD coordinates. 0:
+                    no mapping (tilted coordinate system if using oblique DMD), 1: DMD coordinate
+                    transformation, 2: predicted physical appeareance on DMD""", choices=[0, 1, 2])
+
+
 
 opt = parser.parse_args()
 
@@ -77,7 +94,7 @@ def GetParams_20230410():  # uniform randomisation
     # number of orientations of stripes
     SIMopt.Nangles = opt.Nangles
     # used to adjust PSF/OTF width
-    SIMopt.scale = opt.PSFOTFscale + 0.1 * (np.random.rand() - 0.5)
+    SIMopt.PSFOTFscale = opt.PSFOTFscale + 0.1 * (np.random.rand() - 0.5)
     # modulation factor
     SIMopt.ModFac = opt.ModFac + 0.3 * (np.random.rand() - 0.5)
     # orientation offset
@@ -125,14 +142,14 @@ def GetParams_20230410():  # uniform randomisation
 def GetParams():  # uniform randomisation
     SIMopt = argparse.Namespace()
 
+    # modulation factor
+    SIMopt.ModFac = opt.ModFac  # + 0.3*(np.random.rand()-0.5)
+
+    # ---- stripes
     # phase shifts for each stripe
     SIMopt.Nshifts = opt.Nshifts
     # number of orientations of stripes
     SIMopt.Nangles = opt.Nangles
-    # used to adjust PSF/OTF width
-    SIMopt.scale = opt.PSFOTFscale  # + 0.1*(np.random.rand()-0.5)
-    # modulation factor
-    SIMopt.ModFac = opt.ModFac  # + 0.3*(np.random.rand()-0.5)
     # orientation offset
     SIMopt.alpha = opt.alphaErrorFac * pi * (np.random.rand() - 0.5)
     # orientation error
@@ -143,12 +160,16 @@ def GetParams():  # uniform randomisation
     SIMopt.phaseError = (
         opt.phaseErrorFac * pi * (0.5 - np.random.rand(SIMopt.Nangles, SIMopt.Nshifts))
     )
-    # mean illumination intensity
-    SIMopt.meanInten = np.ones(SIMopt.Nangles) * 0.5
-    # amplitude of illumination intensity above mean
-    SIMopt.ampInten = np.ones(SIMopt.Nangles) * 0.5 * SIMopt.ModFac
     # illumination freq
     SIMopt.k2 = opt.k2 + opt.k2_err * (np.random.rand() - 0.5)
+
+    # --- spots
+    SIMopt.Nspots = opt.Nspots
+    SIMopt.spotSize = opt.spotSize
+
+
+    # used to adjust PSF/OTF width
+    SIMopt.PSFOTFscale = opt.PSFOTFscale  # + 0.1*(np.random.rand()-0.5)
     # noise type
     SIMopt.usePoissonNoise = opt.usePoissonNoise
     # noise level (percentage for Gaussian)
@@ -167,8 +188,29 @@ def GetParams():  # uniform randomisation
     # function to use for stripes
     SIMopt.func = np.cos
 
-    return SIMopt
+    SIMopt.patterns = opt.patterns
+    SIMopt.crop_factor = opt.crop_factor
+    SIMopt.SIMmodality = opt.SIMmodality
+    SIMopt.dmdMapping = opt.dmdMapping
 
+    # --- Nframes
+    if SIMopt.SIMmodality == "stripes":
+        SIMopt.Nframes = SIMopt.Nangles * SIMopt.Nshifts
+        # mean illumination intensity
+        SIMopt.meanInten = np.ones(SIMopt.Nangles)
+        # amplitude of illumination intensity above mean
+        SIMopt.ampInten = np.ones(SIMopt.Nangles) * SIMopt.ModFac
+    else:
+        SIMopt.Nframes = (SIMopt.Nspots // SIMopt.spotSize)**2
+        # amplitude of illumination intensity above mean
+        SIMopt.ampInten = SIMopt.ModFac
+        # mean illumination intensity
+        SIMopt.meanInten = 1 - SIMopt.ampInten
+
+
+
+
+    return SIMopt
 
 # ------------ Main loop --------------
 def processImage(file):
@@ -312,11 +354,6 @@ if __name__ == "__main__":
                 "ntrain + opt.ntest is too high given nrep and number of source images"
             )
             sys.exit(0)
-        elif opt.nch_in > opt.Nangles * opt.Nshifts:
-            print(
-                "nch_in cannot be greater than Nangles*Nshifts - not enough SIM frames"
-            )
-            sys.exit(0)
 
         files = files[: math.ceil((opt.ntrain + opt.ntest) / opt.nrep)]
 
@@ -326,15 +363,22 @@ if __name__ == "__main__":
         for file in files:
             print(file)
 
-        with Pool(opt.datagen_workers) as p:
-            if not opt.seqSIM:
-                p.map(processImage, files)
-            elif "imagefolder" not in opt.ext:
-                p.map(processSeqImage, files)
-            else:
-                p.map(
-                    processSeqImageFolder, files
-                )  # processSeqImage if using tif files instead of folders of jpgs
+
+        if opt.datagen_workers > 0:
+            p = Pool(opt.datagen_workers)
+            mapfun = p.map
+        else:
+            mapfun = map
+
+
+        if not opt.seqSIM:
+            list(mapfun(processImage, files))
+        elif "imagefolder" not in opt.ext:
+            list(mapfun(processSeqImage, files))
+        else:
+            list(mapfun(
+                processSeqImageFolder, files
+            ))  # processSeqImage if using tif files instead of folders of jpgs
 
         print("Done generating images,", opt.root)
 

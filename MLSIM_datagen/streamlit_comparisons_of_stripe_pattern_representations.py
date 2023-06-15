@@ -36,7 +36,7 @@ def GetParams_20230410():  # uniform randomisation
     # number of orientations of stripes
     opt.Nangles = 3
     # used to adjust PSF/OTF width
-    opt.scale = 0.9 + 0.1 * (np.random.rand() - 0.5)
+    opt.OTFPSFscale = 0.9 + 0.1 * (np.random.rand() - 0.5)
     # modulation factor
     opt.ModFac = 0.2 + 0.3 * (np.random.rand() - 0.5)
     # orientation offset
@@ -74,7 +74,7 @@ def GetParams_Exact():  # uniform randomisation
     # number of orientations of stripes
     opt.Nangles = 3
     # used to adjust PSF/OTF width
-    opt.scale = 0.9
+    opt.PSFOTFscale = 0.9
     # modulation factor
     opt.ModFac = 0.8
     # orientation offset
@@ -119,12 +119,9 @@ def gen_sample_images():
     pixelsize_ratio = 1
 
     # Generation of the PSF with Besselj.
-    PSFo, OTFo = PsfOtf(w, opt.scale, opt)
     frames = SIMimages_spots(
         opt,
         img.shape[0],
-        PSFo,
-        OTFo,
         func=square_wave_one_third,
         pixelsize_ratio=pixelsize_ratio,
     )
@@ -212,7 +209,6 @@ def read_exp_sample_image():
 def gen_sample_pattern(opt):
     w = 512
 
-    PSFo, OTFo = PsfOtf(w, opt.scale, opt)
 
     # opt.k2 = 70
     opt.k2 = 20  # most used value so far
@@ -230,7 +226,7 @@ def gen_sample_pattern(opt):
 
     # regular stripes
     opt.noStripes = False
-    frames = SIMimages(opt, w, PSFo, OTFo, func=func, pixelsize_ratio=pixelsize_ratio)
+    frames = SIMimages(opt, w, func=func, pixelsize_ratio=pixelsize_ratio)
 
     # speckles
     # opt.Nframes = 100
@@ -238,7 +234,7 @@ def gen_sample_pattern(opt):
     # opt.crop_factor = False
     # frames = SIMimages_speckle(opt, img, PSFo, OTFo)
 
-    # frames = SIMimages_spots(opt, img.shape[0], PSFo, OTFo)
+    # frames = SIMimages_spots(opt, img.shape[0])
 
     # new_frames = []
     # for frame in frames:
@@ -262,7 +258,6 @@ def gen_sample_pattern_loop_stripes(opt):
     # opt = GetParams_Exact()
 
     opt.patterns = True
-    PSFo, OTFo = PsfOtf(w, opt.scale, opt)
 
     k2_arr = [200]
     pixelsize_ratio_arr = [1.6, 1.7, 1.8]
@@ -274,7 +269,7 @@ def gen_sample_pattern_loop_stripes(opt):
                 opt.k2 = k2
 
                 frames = SIMimages(
-                    opt, w, PSFo, OTFo, func=func, pixelsize_ratio=pixelsize_ratio
+                    opt, w, func=func, pixelsize_ratio=pixelsize_ratio
                 )
 
                 new_frames = []
@@ -296,7 +291,6 @@ def gen_sample_pattern_loop_spots(opt):
     w = 512
 
     opt.patterns = True
-    PSFo, OTFo = PsfOtf(w, opt.scale, opt)
 
     spotSize_arr = [1, 2]
     # Nspots_arr = [3, 5, 8, 10]
@@ -309,7 +303,7 @@ def gen_sample_pattern_loop_spots(opt):
                 opt.Nspots = Nspots
                 opt.Nframes = 2  # opt.Nspots**2
                 opt.dmdMapping = dmdMapping
-                frames = SIMimages_spots(opt, w, PSFo, OTFo)
+                frames = SIMimages_spots(opt, w)
 
                 new_frames = []
                 for frame in frames:
