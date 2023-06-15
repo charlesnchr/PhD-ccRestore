@@ -11,7 +11,7 @@ import random
 
 import numpy as np
 
-from skimage import io, exposure, transform, img_as_float
+from skimage import io, exposure, transform, img_as_float, filters, img_as_ubyte
 
 
 def PSNR(I0, I1):
@@ -1105,11 +1105,13 @@ class Fourier_SIM_dataset(Dataset):
 
         widefield = np.mean(inputimg, 0)
 
-        if len(stack) > self.nch_in + 2:
+        if len(stack) > self.nch_in + 2 and self.scale == 1:
             simimg = stack[self.nch_in + 2]  # sim reference image
             simimg = simimg.astype("float") / np.max(simimg)
         else:
             simimg = np.mean(inputimg, 0)  # same as widefield
+            simimg_uint8 = img_as_ubyte(simimg)
+            simimg = filters.unsharp_mask(simimg_uint8, radius=1.0, amount=1.0)
 
         if self.norm == "adapthist":
             for i in range(len(inputimg)):

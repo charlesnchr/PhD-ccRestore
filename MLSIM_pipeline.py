@@ -85,6 +85,84 @@ if opt.root == "auto":
 
 np.random.seed(20221219)
 
+def GetParams_20230625():  # uniform randomisation
+    SIMopt = argparse.Namespace()
+
+    # modulation factor
+    SIMopt.ModFac = 0.3 + 0.3*(np.random.rand()-0.5)
+
+    # ---- stripes
+    # phase shifts for each stripe
+    SIMopt.Nshifts = opt.Nshifts
+    # number of orientations of stripes
+    SIMopt.Nangles = opt.Nangles
+    # orientation offset
+    SIMopt.alpha = opt.alphaErrorFac * pi * (np.random.rand() - 0.5)
+    # orientation error
+    SIMopt.angleError = opt.angleError * pi / 180 * (np.random.rand() - 0.5)
+    # shuffle the order of orientations
+    SIMopt.shuffleOrientations = not opt.dontShuffleOrientations
+    # random phase shift errors
+    SIMopt.phaseError = (
+        opt.phaseErrorFac * pi * (0.5 - np.random.rand(SIMopt.Nangles, SIMopt.Nshifts))
+    )
+    # illumination freq
+    SIMopt.k2 = opt.k2 + opt.k2_err * (np.random.rand() - 0.5)
+
+    # --- spots
+    SIMopt.Nspots = opt.Nspots
+    SIMopt.spotSize = opt.spotSize
+
+
+    # used to adjust PSF/OTF width
+    SIMopt.PSFOTFscale = 0.7 + 0.2*(np.random.rand()-0.5)
+    # noise type
+    SIMopt.usePoissonNoise = opt.usePoissonNoise
+    # noise level (percentage for Gaussian)
+    SIMopt.NoiseLevel = opt.NoiseLevel + opt.NoiseLevelRandFac * (
+        np.random.rand() - 0.5
+    )
+    # 1(to blur using PSF), 0(to blur using OTF)
+    SIMopt.UsePSF = opt.usePSF
+    # include OTF and GT in stack
+    SIMopt.OTF_and_GT = True
+    # use a blurred target (according to theoretical optimal construction)
+    SIMopt.applyOTFtoGT = opt.applyOTFtoGT
+    # whether to simulate images using just widefield illumination
+    SIMopt.noStripes = opt.noStripes
+
+    # function to use for stripes
+    SIMopt.func = np.cos
+
+    SIMopt.patterns = opt.patterns
+    SIMopt.crop_factor = opt.crop_factor
+    SIMopt.SIMmodality = opt.SIMmodality
+    SIMopt.dmdMapping = opt.dmdMapping
+
+    # --- Nframes
+    if SIMopt.SIMmodality == "stripes":
+        SIMopt.Nframes = SIMopt.Nangles * SIMopt.Nshifts
+        # mean illumination intensity
+        SIMopt.meanInten = np.ones(SIMopt.Nangles)
+        # amplitude of illumination intensity above mean
+        SIMopt.ampInten = np.ones(SIMopt.Nangles) * SIMopt.ModFac
+    else:
+        SIMopt.Nframes = (SIMopt.Nspots // SIMopt.spotSize)**2
+        # amplitude of illumination intensity above mean
+        SIMopt.ampInten = SIMopt.ModFac
+        # mean illumination intensity
+        SIMopt.meanInten = 1 - SIMopt.ampInten
+        # resize amount of spots (to imitate effect of cropping from FOV on DMD/camera sensor)
+        SIMopt.spotResize = 0.7 + 0.6*(np.random.rand()-0.5)
+
+
+    SIMopt.imageSize = opt.imageSize
+
+
+
+    return SIMopt
+
+
 
 def GetParams_20230410():  # uniform randomisation
     SIMopt = argparse.Namespace()
@@ -206,7 +284,11 @@ def GetParams():  # uniform randomisation
         SIMopt.ampInten = SIMopt.ModFac
         # mean illumination intensity
         SIMopt.meanInten = 1 - SIMopt.ampInten
+        # resize amount of spots (to imitate effect of cropping from FOV on DMD/camera sensor)
+        SIMopt.spotResize = 1
 
+
+    SIMopt.imageSize = opt.imageSize
 
 
 
@@ -364,21 +446,15 @@ if __name__ == "__main__":
             print(file)
 
 
-        if opt.datagen_workers > 0:
-            p = Pool(opt.datagen_workers)
-            mapfun = p.map
-        else:
-            mapfun = map
-
-
-        if not opt.seqSIM:
-            list(mapfun(processImage, files))
-        elif "imagefolder" not in opt.ext:
-            list(mapfun(processSeqImage, files))
-        else:
-            list(mapfun(
-                processSeqImageFolder, files
-            ))  # processSeqImage if using tif files instead of folders of jpgs
+        with Pool(opt.datagen_workers) as p:
+            if not opt.seqSIM:
+                p.map(processImage, files)
+            elif "imagefolder" not in opt.ext:
+                p.map(processSeqImage, files)
+            else:
+                p.map(
+                    processSeqImageFolder, files
+                )  # processSeqImage if using tif files instead of folders of jpgs
 
         print("Done generating images,", opt.root)
 

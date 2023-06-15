@@ -52,8 +52,11 @@ def Get_X_Y_MeshGrids(w, opt, forPSF=False):
             crop_factor_x = 1
             crop_factor_y = 1
         else:
-            crop_factor_x = 428 / 912
-            crop_factor_y = 684 / 1140
+            dim = opt.imageSize
+            if type(dim) is int:
+                dim = (dim, dim)
+            crop_factor_x = dim[1] / 912   # 428
+            crop_factor_y = dim[0] / 1140  # 684
 
         # data from dec 2022 acquired with DMD patterns with the below factors
         # crop_factor_x = 1
@@ -431,6 +434,11 @@ def SIMimages_spots(opt, DIo):
             # # clip to 0-1
             # sig = sig.clip(0, 1)
             # sig = img_as_ubyte(sig)
+
+            # crop and resize
+            dim = sig.shape
+            sig = sig[:int(dim[0] * opt.spotResize), :int(dim[1] * opt.spotResize)]
+            sig = transform.resize(sig, dim)
 
         if opt.patterns:
             frame = sig
