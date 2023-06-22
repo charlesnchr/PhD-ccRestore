@@ -67,15 +67,30 @@ parser.add_argument("--applyOTFtoGT", action="store_true")
 parser.add_argument("--noStripes", action="store_true")
 parser.add_argument("--seqSIM", action="store_true")
 parser.add_argument("--skip_datagen", action="store_true")
-parser.add_argument("--SIMmodality", type=str, default="stripes", help="SIM modality", choices=["stripes", "spots", "speckle"])
-parser.add_argument("--patterns", action="store_true", help="Only illumination patterns")
+parser.add_argument(
+    "--SIMmodality",
+    type=str,
+    default="stripes",
+    help="SIM modality",
+    choices=["stripes", "spots", "speckle"],
+)
+parser.add_argument(
+    "--patterns", action="store_true", help="Only illumination patterns"
+)
 
 # DMD options
-parser.add_argument("--crop_factor", action="store_true", help="Crop factor for DMD coordinates")
-parser.add_argument("--dmdMapping", default=0, type=int, help="""whether to map image to DMD coordinates. 0:
+parser.add_argument(
+    "--crop_factor", action="store_true", help="Crop factor for DMD coordinates"
+)
+parser.add_argument(
+    "--dmdMapping",
+    default=0,
+    type=int,
+    help="""whether to map image to DMD coordinates. 0:
                     no mapping (tilted coordinate system if using oblique DMD), 1: DMD coordinate
-                    transformation, 2: predicted physical appeareance on DMD""", choices=[0, 1, 2])
-
+                    transformation for acquisition, 2: predicted physical appeareance on DMD for modelling""",
+    choices=[0, 1, 2],
+)
 
 
 opt = parser.parse_args()
@@ -85,11 +100,12 @@ if opt.root == "auto":
 
 np.random.seed(20221219)
 
+
 def GetParams_20230625():  # uniform randomisation
     SIMopt = argparse.Namespace()
 
     # modulation factor
-    SIMopt.ModFac = 0.3 + 0.3*(np.random.rand()-0.5)
+    SIMopt.ModFac = 0.3 + 0.3 * (np.random.rand() - 0.5)
 
     # ---- stripes
     # phase shifts for each stripe
@@ -113,9 +129,8 @@ def GetParams_20230625():  # uniform randomisation
     SIMopt.Nspots = opt.Nspots
     SIMopt.spotSize = opt.spotSize
 
-
     # used to adjust PSF/OTF width
-    SIMopt.PSFOTFscale = 0.7 + 0.2*(np.random.rand()-0.5)
+    SIMopt.PSFOTFscale = 0.7 + 0.2 * (np.random.rand() - 0.5)
     # noise type
     SIMopt.usePoissonNoise = opt.usePoissonNoise
     # noise level (percentage for Gaussian)
@@ -147,21 +162,17 @@ def GetParams_20230625():  # uniform randomisation
         # amplitude of illumination intensity above mean
         SIMopt.ampInten = np.ones(SIMopt.Nangles) * SIMopt.ModFac
     else:
-        SIMopt.Nframes = (SIMopt.Nspots // SIMopt.spotSize)**2
+        SIMopt.Nframes = (SIMopt.Nspots // SIMopt.spotSize) ** 2
         # amplitude of illumination intensity above mean
         SIMopt.ampInten = SIMopt.ModFac
         # mean illumination intensity
         SIMopt.meanInten = 1 - SIMopt.ampInten
         # resize amount of spots (to imitate effect of cropping from FOV on DMD/camera sensor)
-        SIMopt.spotResize = 0.7 + 0.6*(np.random.rand()-0.5)
-
+        SIMopt.spotResize = 0.7 + 0.6 * (np.random.rand() - 0.5)
 
     SIMopt.imageSize = opt.imageSize
 
-
-
     return SIMopt
-
 
 
 def GetParams_20230410():  # uniform randomisation
@@ -245,7 +256,6 @@ def GetParams():  # uniform randomisation
     SIMopt.Nspots = opt.Nspots
     SIMopt.spotSize = opt.spotSize
 
-
     # used to adjust PSF/OTF width
     SIMopt.PSFOTFscale = opt.PSFOTFscale  # + 0.1*(np.random.rand()-0.5)
     # noise type
@@ -279,7 +289,7 @@ def GetParams():  # uniform randomisation
         # amplitude of illumination intensity above mean
         SIMopt.ampInten = np.ones(SIMopt.Nangles) * SIMopt.ModFac
     else:
-        SIMopt.Nframes = (SIMopt.Nspots // SIMopt.spotSize)**2
+        SIMopt.Nframes = (SIMopt.Nspots // SIMopt.spotSize) ** 2
         # amplitude of illumination intensity above mean
         SIMopt.ampInten = SIMopt.ModFac
         # mean illumination intensity
@@ -287,15 +297,13 @@ def GetParams():  # uniform randomisation
         # resize amount of spots (to imitate effect of cropping from FOV on DMD/camera sensor)
         SIMopt.spotResize = 1
 
-
     SIMopt.imageSize = opt.imageSize
-
-
 
     return SIMopt
 
+
 # ------------ Main loop --------------
-def processImage(file):
+def processImage(file, SIMopt_override=None):
     if "npy" in opt.ext:
         Io = np.load(file, allow_pickle=True) / 255
         filename = os.path.basename(file).replace(".npy", "")
@@ -323,12 +331,18 @@ def processImage(file):
     gt_dim = [int(x * opt.scale) for x in gt_dim]
 
     for n in range(opt.nrep):
-        SIMopt = eval("%s()" % opt.params)  # GetParams
+        if SIMopt_override is None:
+            SIMopt = eval("%s()" % opt.params)  # GetParams
+        else:
+            SIMopt = SIMopt_override
+
         SIMopt.outputname = "%s/%s_%d.tif" % (opt.root, filename, n)
 
         I = MLSIM_datagen.SIMulator_functions.Generate_SIM_Image(
             SIMopt, Io, opt.imageSize, gt_dim, func=SIMopt.func
         )
+
+    return I
 
 
 # ------------ Main loop --------------
@@ -444,7 +458,6 @@ if __name__ == "__main__":
 
         for file in files:
             print(file)
-
 
         with Pool(opt.datagen_workers) as p:
             if not opt.seqSIM:
