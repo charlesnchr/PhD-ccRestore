@@ -1154,6 +1154,11 @@ class Fourier_SIM_dataset(Dataset):
                         * (inputimg[i] - torch.min(inputimg[i]))
                         / (torch.max(inputimg[i]) - torch.min(inputimg[i]))
                     )
+            elif self.norm == "percentile":
+                inputimg = inputimg.numpy()
+                p1, p2 = np.percentile(inputimg, (0.1, 99.5))
+                inputimg = exposure.rescale_intensity(inputimg, in_range=(p1, p2))
+                inputimg = torch.tensor(inputimg).float()
 
 
         if self.patchSize is not None:

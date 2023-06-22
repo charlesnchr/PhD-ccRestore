@@ -89,7 +89,7 @@ def GetParams_20230625():  # uniform randomisation
     SIMopt = argparse.Namespace()
 
     # modulation factor
-    SIMopt.ModFac = 0.3 + 0.3*(np.random.rand()-0.5)
+    SIMopt.ModFac = opt.ModFac + 0.3*(np.random.rand()-0.5)
 
     # ---- stripes
     # phase shifts for each stripe
@@ -115,7 +115,7 @@ def GetParams_20230625():  # uniform randomisation
 
 
     # used to adjust PSF/OTF width
-    SIMopt.PSFOTFscale = 0.7 + 0.2*(np.random.rand()-0.5)
+    SIMopt.PSFOTFscale = opt.PSFOTFscale + 0.2*(np.random.rand()-0.5)
     # noise type
     SIMopt.usePoissonNoise = opt.usePoissonNoise
     # noise level (percentage for Gaussian)
