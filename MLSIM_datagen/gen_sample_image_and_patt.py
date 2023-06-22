@@ -74,7 +74,7 @@ def GetParams_Exact():  # uniform randomisation
     # number of orientations of stripes
     opt.Nangles = 3
     # used to adjust PSF/OTF width
-    opt.scale = 0.9
+    opt.PSFOTFscale = 0.9
     # modulation factor
     opt.ModFac = 0.8
     # orientation offset
@@ -100,6 +100,8 @@ def GetParams_Exact():  # uniform randomisation
     # include OTF and GT in stack
     opt.OTF_and_GT = True
     opt.noStripes = False
+    opt.spotResize = 1
+    opt.imageSize = [684, 428]
 
     return opt
 
@@ -225,7 +227,6 @@ def gen_sample_pattern(opt):
 
     # regular stripes
     opt.noStripes = False
-    breakpoint()
     frames = SIMimages(opt, w, func=func, pixelsize_ratio=pixelsize_ratio)
 
     # speckles
@@ -258,16 +259,18 @@ def gen_sample_pattern_loop_stripes(opt):
     # opt = GetParams_Exact()
 
     opt.patterns = True
-    PSFo, OTFo = PsfOtf(w, opt)
+    opt.SIMmodality = "stripes"
+    opt.Nshifts = 5
+    opt.phaseError = 0 * (0.5 - np.random.rand(opt.Nangles, opt.Nshifts))
 
-    k2_arr = [20, 50, 80, 200]
+    k2_arr = [30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
     pixelsize_ratio_arr = [1]
-    func_arr = [square_wave_one_third]
+    func_arr = [cos, square_wave_one_third]
 
     for k2 in k2_arr:
         for pixelsize_ratio in pixelsize_ratio_arr:
             for func in func_arr:
-                for dmdMapping in [0, 1, 2]:
+                for dmdMapping in [1]:
                     opt.dmdMapping = dmdMapping
                     opt.k2 = k2
 
@@ -283,48 +286,51 @@ def gen_sample_pattern_loop_stripes(opt):
                         new_frames.append(frame)
                     frames = np.array(new_frames)
 
+                    filename = f"patterns_pixelsize_ratio_{pixelsize_ratio}_k2_{opt.k2}_func_{func.__name__}_dmdMapping_{opt.dmdMapping}.tif"
                     io.imsave(
-                        f"../plugins-branch/sim_patterns/patterns_pixelsize_ratio_{pixelsize_ratio}_k2_{opt.k2}_func_{func.__name__}_dmdMapping_{opt.dmdMapping}.tif",
+                        f"../plugins-branch/sim_patterns/{filename}",
                         frames,
                     )
-                    print("generated sample pattern patterns.tif")
+                    print(f"Generated {filename}")
+
 
 def gen_sample_pattern_loop_spots(opt):
     w = 512
 
     opt.patterns = True
-    PSFo, OTFo = PsfOtf(w, opt)
+    opt.SIMmodality = "spots"
 
     # spotSize_arr = [1, 2]
     # Nspots_arr = [3, 5, 8, 10]
 
-    spotSize_arr = [40]
-    Nspots_arr = [160]
-    dmdMapping_arr = [0]
+    spotSize_arr = [1, 2, 3, 5, 10, 20]
+    Nspots_arr = [10, 20, 30, 50, 50, 60]
+    dmdMapping_arr = [1]
 
-    for spotSize in spotSize_arr:
-        for Nspots in Nspots_arr:
-            for dmdMapping in dmdMapping_arr:
-                opt.spotSize = spotSize
-                opt.Nspots = Nspots
-                opt.Nframes = 2  # opt.Nspots**2
-                opt.dmdMapping = dmdMapping
-                frames = SIMimages_spots(opt, w)
+    for spotSize, Nspots in zip(spotSize_arr, Nspots_arr):
+        for dmdMapping in dmdMapping_arr:
+            opt.spotSize = spotSize
+            opt.Nspots = Nspots
+            opt.Nframes = (opt.Nspots // opt.spotSize) ** 2
+            opt.dmdMapping = dmdMapping
+            frames = SIMimages_spots(opt, w)
 
-                new_frames = []
-                for frame in frames:
-                    frame = exposure.rescale_intensity(frame, out_range="uint8")
-                    frame = img_as_ubyte(frame)
-                    new_frames.append(frame)
+            new_frames = []
+            for frame in frames:
+                frame = exposure.rescale_intensity(frame, out_range="uint8")
+                frame = img_as_ubyte(frame)
+                new_frames.append(frame)
 
-                frames = np.array(new_frames)
+            frames = np.array(new_frames)
 
-                os.makedirs("../plugins-branch/spot_patterns", exist_ok=True)
-                io.imsave(
-                    f"../plugins-branch/spot_patterns/patterns_spotSize_{spotSize}_Nspots_{Nspots}_dmdMapping_{int(opt.dmdMapping)}.tif",
-                    frames,
-                )
-                print("generated sample pattern patterns.tif")
+            os.makedirs("../plugins-branch/spot_patterns", exist_ok=True)
+
+            filename = f"patterns_spotSize_{spotSize}_Nspots_{Nspots}_dmdMapping_{int(opt.dmdMapping)}.tif"
+            io.imsave(
+                f"../plugins-branch/spot_patterns/{filename}",
+                frames,
+            )
+            print(f"Generated {filename}")
 
 
 def read_sample_pattern(opt):
@@ -389,13 +395,13 @@ if __name__ == "__main__":
     # read_sample_image()
     # read_exp_sample_image()
 
-    # gen_sample_pattern_loop_stripes(opt)
+    gen_sample_pattern_loop_stripes(opt)
     # gen_sample_pattern_loop_spots(opt)
 
     # opt.dmdMapping = False
     # opt.patterns = True
 
-    gen_sample_pattern(opt)
-    read_sample_pattern(opt)
+    # gen_sample_pattern(opt)
+    # read_sample_pattern(opt)
 
     # gen_sample_pattern_loop()

@@ -55,7 +55,7 @@ def Get_X_Y_MeshGrids(w, opt, forPSF=False):
             dim = opt.imageSize
             if type(dim) is int:
                 dim = (dim, dim)
-            crop_factor_x = dim[1] / 912   # 428
+            crop_factor_x = dim[1] / 912  # 428
             crop_factor_y = dim[0] / 1140  # 684
 
         # data from dec 2022 acquired with DMD patterns with the below factors
@@ -68,7 +68,10 @@ def Get_X_Y_MeshGrids(w, opt, forPSF=False):
         # y = np.linspace(0, w - 1, 1140)
         # [X, Y] = np.meshgrid(x, y)
 
-        if (opt.dmdMapping == 2 or (opt.dmdMapping == 1 and opt.SIMmodality == 'stripes'))  and not forPSF:
+        if (
+            opt.dmdMapping == 2
+            or (opt.dmdMapping == 1 and opt.SIMmodality == "stripes")
+        ) and not forPSF:
             padding = 4
         else:
             padding = 1
@@ -189,7 +192,7 @@ def SIMimages(opt, DIo, func=np.cos, pixelsize_ratio=1):
 
             # whether to transform sig for dmd
             if opt.dmdMapping > 0:
-            # crop to upper left quadrant if padding was added
+                # crop to upper left quadrant if padding was added
                 if opt.dmdMapping == 1:
                     sig = DMDPixelTransform(
                         sig,
@@ -212,7 +215,6 @@ def SIMimages(opt, DIo, func=np.cos, pixelsize_ratio=1):
 
                     # Crop the center of the image
                     sig = rotated_image[row_start:row_end, col_start:col_end]
-
 
             if opt.patterns:
                 frame = sig
@@ -244,7 +246,6 @@ def SIMimages(opt, DIo, func=np.cos, pixelsize_ratio=1):
                     STnoisy = ST + NoiseFrac * nST
 
                 frame = STnoisy.clip(0, 1)
-
 
             frames.append(frame)
 
@@ -391,7 +392,9 @@ def SIMimages_spots(opt, DIo):
     N = opt.Nspots
 
     # offsets depending on spot size
-    offsets = [(x, y) for x in range(0, N, opt.spotSize) for y in range(0, N, opt.spotSize)]
+    offsets = [
+        (x, y) for x in range(0, N, opt.spotSize) for y in range(0, N, opt.spotSize)
+    ]
 
     t0 = time.perf_counter()
 
@@ -409,7 +412,7 @@ def SIMimages_spots(opt, DIo):
             *offsets[i_a],
         )
 
-        if not opt.patterns: # pure patterns for reference and DMD control
+        if not opt.patterns:  # pure patterns for reference and DMD control
             sig = opt.meanInten + opt.ampInten * sig
 
         # modify sig if padding was added
@@ -437,7 +440,7 @@ def SIMimages_spots(opt, DIo):
 
             # crop and resize
             dim = sig.shape
-            sig = sig[:int(dim[0] * opt.spotResize), :int(dim[1] * opt.spotResize)]
+            sig = sig[: int(dim[0] * opt.spotResize), : int(dim[1] * opt.spotResize)]
             sig = transform.resize(sig, dim)
 
         if opt.patterns:
@@ -469,9 +472,7 @@ def SIMimages_spots(opt, DIo):
                 # noise added raw SIM images
                 STnoisy = ST + NoiseFrac * nST
 
-
             frame = STnoisy.clip(0, 1)
-
 
         frames.append(frame)
 
@@ -489,6 +490,11 @@ def square_wave_one_third(x):
     return 2 * (np.heaviside(np.cos(x) - np.cos(1 * np.pi / 3), 0) - 1 / 3)
 
 
+def square_wave_large_spacing(x):
+    # sums to 0
+    return 2 * (np.heaviside(np.cos(x) - np.cos(1 * np.pi / 10), 0) - 1 / 10)
+
+
 def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024, func=np.cos):
     DIo = Io.astype("float")
 
@@ -502,7 +508,6 @@ def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024, func=np.cos):
 
     # Generation of the PSF with Besselj.
     PSFo, OTFo = PsfOtf(w, opt)
-
 
     if opt.SIMmodality == "stripes":
         frames = SIMimages(opt, DIo, func=func)
@@ -521,10 +526,10 @@ def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024, func=np.cos):
 
         if gt_dim > in_dim:  # assumes a upscale factor of 2 is given
             # gt_img = skimage.transform.resize(gt_img, (gt_dim,gt_dim), order=3)
-            gt11 = gt_img[:in_dim[0], :in_dim[1]]
-            gt21 = gt_img[in_dim[0]:, :in_dim[1]]
-            gt12 = gt_img[:in_dim[0], in_dim[1]:]
-            gt22 = gt_img[in_dim[0]:, in_dim[1]:]
+            gt11 = gt_img[: in_dim[0], : in_dim[1]]
+            gt21 = gt_img[in_dim[0] :, : in_dim[1]]
+            gt12 = gt_img[: in_dim[0], in_dim[1] :]
+            gt22 = gt_img[in_dim[0] :, in_dim[1] :]
             # frames.extend([gt11,gt21,gt12,gt22])
             frames.append(gt11)
             frames.append(gt21)
@@ -543,7 +548,9 @@ def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024, func=np.cos):
 
     # normalised SIM stack
     simstack = stack[: opt.Nframes]
-    stack[: opt.Nframes] = (simstack - np.min(simstack)) / ( np.max(simstack) - np.min(simstack))
+    stack[: opt.Nframes] = (simstack - np.min(simstack)) / (
+        np.max(simstack) - np.min(simstack)
+    )
 
     # normalised gt
     if gt_dim > in_dim:
