@@ -19,18 +19,27 @@ import os
 import argparse
 from multiprocessing import Pool
 import subprocess
-import MLSIM_datagen.SIMulator_functions
-from MLSIM_pipeline import *
-import MLSIM_datagen.SeqSIMulator_functions
-import run
+import SIMulator_functions
+import SeqSIMulator_functions
 import shutil
 import wandb
+
+from pathlib import Path
+
+# Get the path of the parent directory
+parent_dir = Path(__file__).resolve().parent.parent
+
+# Append this path to sys.path
+sys.path.append(str(parent_dir))
+
+from MLSIM_pipeline import *
+from MLSIM_pipeline import opt
 
 
 def radial_profile(data, center):
     y, x = np.indices((data.shape))
     r = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
-    r = r.astype(np.int)
+    r = r.astype('int')
 
     tbin = np.bincount(r.ravel(), data.ravel())
     nr = np.bincount(r.ravel())
@@ -73,7 +82,7 @@ def GetParams_frequency_support_investigation_20230621():  # uniform randomisati
     # 1(to blur using PSF), 0(to blur using OTF)
     SIMopt.UsePSF = opt.usePSF
     # include OTF and GT in stack
-    SIMopt.OTF_and_GT = True
+    SIMopt.OTF_and_GT = opt.OTF_and_GT
     # use a blurred target (according to theoretical optimal construction)
     SIMopt.applyOTFtoGT = opt.applyOTFtoGT
     # whether to simulate images using just widefield illumination
@@ -211,10 +220,10 @@ def plot_otf_and_profile(data, center):
 
     # Plot OTF with cutoff circle
     # normalise before plotting
-    p1, p2 = noise_floor, max_value
-    # plot_data = data
+    # p1, p2 = noise_floor, max_value
+    plot_data = data
     # plot_data = np.clip((data - p1) / (p2 - p1), 0, 1) + 1
-    plot_data = np.clip(data, p1, p2)
+    # plot_data = np.clip(data, p1, p2)
 
     axs[1].imshow(20 * np.log(plot_data), cmap="gray")
     cutoff_circle = plt.Circle(center, cutoff_radius, color="r", fill=False)
@@ -233,15 +242,16 @@ def main():
     opt.sourceimages_path = "MLSIM_datagen"
     opt.root = "MLSIM_datagen"
     opt.out = "MLSIM_datagen"
-    opt.ModFac = 0.9
+    opt.ModFac = 0.8
     opt.PSFOTFscale = 0.6
-    opt.k2 = 80
+    opt.k2 = 40
     opt.SIMmodality = "stripes"
     opt.Nspots = 10
     opt.Nshifts = 10
     opt.spotSize = 2
     opt.NoiseLevel = 20
-    opt.func = MLSIM_datagen.SIMulator_functions.cos
+    opt.func = MLSIM_datagen.SIMulator_functions.square_wave_large_spacing
+    opt.OTF_and_GT = False
 
     print(opt)
 

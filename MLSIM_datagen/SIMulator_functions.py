@@ -492,7 +492,7 @@ def square_wave_one_third(x):
 
 def square_wave_large_spacing(x):
     # sums to 0
-    return 2 * (np.heaviside(np.cos(x) - np.cos(1 * np.pi / 10), 0) - 1 / 10)
+    return 2 * (np.heaviside(np.cos(x) - np.cos(1 * np.pi / 30), 0) - 1 / 30)
 
 
 def Generate_SIM_Image(opt, Io, in_dim=512, gt_dim=1024, func=np.cos):
