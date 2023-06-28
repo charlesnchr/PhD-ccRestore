@@ -25,18 +25,18 @@ parser.add_argument('--server', dest='root', action='store_const', const='/auto/
 parser.add_argument('--local', dest='root', action='store_const', const='C:/phd-data/datasets/', help='whether to use local root preset: C:/phd-data/datasets/')
 parser.add_argument('--out', type=str, default='results', help='folder to output model training results')
 
-# computation 
+# computation
 parser.add_argument('--workers', type=int, default=6, help='number of data loading workers')
 parser.add_argument('--batchSize', type=int, default=16, help='input batch size')
 
 # restoration options
-parser.add_argument('--task', type=str, default='sr', help='restoration task') 
-parser.add_argument('--scale', type=int, default=4, help='low to high resolution scaling factor') 
-parser.add_argument('--nch_in', type=int, default=3, help='colour channels in input') 
-parser.add_argument('--nch_out', type=int, default=3, help='colour channels in output') 
+parser.add_argument('--task', type=str, default='sr', help='restoration task')
+parser.add_argument('--scale', type=int, default=4, help='low to high resolution scaling factor')
+parser.add_argument('--nch_in', type=int, default=3, help='colour channels in input')
+parser.add_argument('--nch_out', type=int, default=3, help='colour channels in output')
 
-# architecture options 
-parser.add_argument('--narch', type=int, default=0, help='architecture-dependent parameter') 
+# architecture options
+parser.add_argument('--narch', type=int, default=0, help='architecture-dependent parameter')
 parser.add_argument('--n_resblocks', type=int, default=10, help='number of residual blocks')
 parser.add_argument('--n_resgroups', type=int, default=10, help='number of residual groups')
 parser.add_argument('--reduction', type=int, default=16, help='number of feature maps reduction')

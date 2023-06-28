@@ -17,8 +17,10 @@ from SIMulator_functions import (
     SIMimages_speckle,
     SIMimages_spots,
     PsfOtf,
+    cos_wave,
     square_wave_one_third,
     square_wave,
+    square_wave_large_spacing
 )
 import os
 import matplotlib.pyplot as plt
@@ -121,7 +123,7 @@ def gen_sample_images():
     pixelsize_ratio = 1
 
     # Generation of the PSF with Besselj.
-    frames = SIMimages_spots(
+    frames = SIMimages(
         opt,
         img.shape[0],
         func=square_wave_one_third,
@@ -212,22 +214,33 @@ def gen_sample_pattern(opt):
     w = 512
 
     # opt.k2 = 70
-    opt.k2 = 20  # most used value so far
+    opt.k2 = 30
     # opt.k2 = 90
     # opt.k2 = 100
+    opt.imageSize = [512, 512]
+    opt.dmdMapping = 0
+    opt.crop_factor = False
+    opt.SIMmodality = 'stripes'
+    opt.Nshifts = 10
+    opt.phaseError = 0 * (0.5 - np.random.rand(opt.Nangles, opt.Nshifts))
     pixelsize_ratio = 1
     # pixelsize_ratio = 1.6
     # pixelsize_ratio = 1.7
     # pixelsize_ratio = 1.8  # seemingly best value so far
-    # func = np.cos
+    # func = cos_wave
     # func = square_wave
-    func = square_wave_one_third  # seems best for DMD
+    func = square_wave_large_spacing # seems best for DMD
 
     img = data.astronaut().mean(axis=2)
 
     # regular stripes
     opt.noStripes = False
-    frames = SIMimages(opt, w, func=func, pixelsize_ratio=pixelsize_ratio)
+    frames, auxil = SIMimages(opt, w, func=func, pixelsize_ratio=pixelsize_ratio)
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(auxil[0])
+
+    st.pyplot(fig)
 
     # speckles
     # opt.Nframes = 100
@@ -265,7 +278,7 @@ def gen_sample_pattern_loop_stripes(opt):
 
     k2_arr = [30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
     pixelsize_ratio_arr = [1]
-    func_arr = [cos, square_wave_one_third]
+    func_arr = [cos_wave, square_wave_one_third]
 
     for k2 in k2_arr:
         for pixelsize_ratio in pixelsize_ratio_arr:
@@ -395,13 +408,13 @@ if __name__ == "__main__":
     # read_sample_image()
     # read_exp_sample_image()
 
-    gen_sample_pattern_loop_stripes(opt)
+    # gen_sample_pattern_loop_stripes(opt)
     # gen_sample_pattern_loop_spots(opt)
 
     # opt.dmdMapping = False
     # opt.patterns = True
 
-    # gen_sample_pattern(opt)
-    # read_sample_pattern(opt)
+    gen_sample_pattern(opt)
+    read_sample_pattern(opt)
 
     # gen_sample_pattern_loop()

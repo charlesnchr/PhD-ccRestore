@@ -24,10 +24,11 @@ def square_wave_one_third(x):
     # sums to 0
     return 2 * (np.heaviside(np.cos(x) - np.cos(1 * np.pi / 3), 0) - 1 / 3)
 
-
 def square_wave_large_spacing(x):
     # sums to 0
-    return 2 * (np.heaviside(np.cos(x) - np.cos(1 * np.pi / 30), 0) - 1 / 30)
+    n = 10
+    d = 2 * np.pi / n
+    return np.heaviside(np.cos(x) - np.cos(d/2), 0)
 
 
 def discretized_sine(x):
@@ -43,7 +44,7 @@ def symmetric_sawtooth_wave(x):
 
 
 def plot_summed_wave(func=np.cos, plotting_displacement=0, n=6):
-    k2 = 50
+    k2 = 40
     w = 512
     wo = w / 2
     theta = 0
@@ -80,9 +81,9 @@ def plot_summed_wave(func=np.cos, plotting_displacement=0, n=6):
     st.text(f"summed wave, {func.__name__}")
 
 
-plot_summed_wave()
-plot_summed_wave(square_wave, plotting_displacement=1)
-plot_summed_wave(square_wave_one_third, plotting_displacement=1, n=3)
-plot_summed_wave(square_wave_large_spacing, plotting_displacement=1, n=30)
-plot_summed_wave(discretized_sine, plotting_displacement=1)
-plot_summed_wave(symmetric_sawtooth_wave, plotting_displacement=0)
+# plot_summed_wave()
+# plot_summed_wave(square_wave, plotting_displacement=1)
+# plot_summed_wave(square_wave_one_third, plotting_displacement=1, n=3)
+plot_summed_wave(square_wave_large_spacing, plotting_displacement=1, n=10)
+# plot_summed_wave(discretized_sine, plotting_displacement=1)
+# plot_summed_wave(symmetric_sawtooth_wave, plotting_displacement=0)
