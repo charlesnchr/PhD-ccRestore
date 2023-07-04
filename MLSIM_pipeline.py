@@ -8,7 +8,6 @@ import os
 import argparse
 from multiprocessing import Pool
 import subprocess
-from MLSIM_datagen.MLSIM_main import Paralleliser
 
 import run
 import shutil
@@ -16,11 +15,19 @@ import wandb
 
 from options import parser
 
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'MLSIM_datagen'))
+
+from MLSIM_main import Paralleliser
+
+
 if __name__ == "__main__":
     opt = parser.parse_args()
 
     if opt.root == "auto":
-        opt.root = opt.out + "_SIMdata"
+        opt.root = opt.out + "/SIMdata"
+        os.makedirs(opt.root, exist_ok=True)
 
     print(opt)
 

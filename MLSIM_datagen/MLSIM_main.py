@@ -7,11 +7,98 @@ import glob
 import os
 import argparse
 from multiprocessing import Pool
-import SIMulator_functions
+from concurrent.futures import ProcessPoolExecutor
+from SIMulator_functions import (
+    SIMimages,
+    SIMimages_speckle,
+    SIMimages_spots,
+    Generate_SIM_Image,
+    PsfOtf,
+    cos_wave,
+    cos_wave_envelope,
+    square_wave_one_third,
+    square_wave,
+    square_wave_large_spacing
+)
 import SeqSIMulator_functions
 
 
 np.random.seed(20221219)
+
+def GetParams_20230703(opt):  # uniform randomisation
+    SIMopt = argparse.Namespace()
+
+    # modulation factor
+    SIMopt.ModFac = opt.ModFac + 0.3*(np.random.rand()-0.5)
+
+    # ---- stripes
+    # phase shifts for each stripe
+    SIMopt.Nshifts = opt.Nshifts
+    # number of orientations of stripes
+    SIMopt.Nangles = opt.Nangles
+    # orientation offset
+    SIMopt.alpha = opt.alphaErrorFac * pi * (np.random.rand() - 0.5)
+    # orientation error
+    SIMopt.angleError = opt.angleError * pi / 180 * (np.random.rand() - 0.5)
+    # shuffle the order of orientations
+    SIMopt.shuffleOrientations = not opt.dontShuffleOrientations
+    # random phase shift errors
+    SIMopt.phaseError = (
+        opt.phaseErrorFac * pi * (0.5 - np.random.rand(SIMopt.Nangles, SIMopt.Nshifts))
+    )
+    # illumination freq
+    SIMopt.k2 = opt.k2 + opt.k2_err * (np.random.rand() - 0.5)
+
+    # --- spots
+    SIMopt.Nspots = opt.Nspots
+    SIMopt.spotSize = opt.spotSize
+
+    # used to adjust PSF/OTF width
+    SIMopt.PSFOTFscale = opt.PSFOTFscale + 0.2*(np.random.rand()-0.5)
+    # noise type
+    SIMopt.usePoissonNoise = opt.usePoissonNoise
+    # noise level (percentage for Gaussian)
+    SIMopt.NoiseLevel = opt.NoiseLevel + opt.NoiseLevelRandFac * (
+        np.random.rand() - 0.5
+    )
+    # 1(to blur using PSF), 0(to blur using OTF)
+    SIMopt.UsePSF = opt.usePSF
+    # include OTF and GT in stack
+    SIMopt.OTF_and_GT = True
+    # use a blurred target (according to theoretical optimal construction)
+    SIMopt.applyOTFtoGT = opt.applyOTFtoGT
+    # whether to simulate images using just widefield illumination
+    SIMopt.noStripes = opt.noStripes
+
+    # function to use for stripes
+    SIMopt.func = cos_wave
+
+    SIMopt.patterns = opt.patterns
+    SIMopt.crop_factor = opt.crop_factor
+    SIMopt.SIMmodality = opt.SIMmodality
+    SIMopt.dmdMapping = opt.dmdMapping
+
+    # --- Nframes
+    if SIMopt.SIMmodality == "stripes":
+        SIMopt.Nframes = SIMopt.Nangles * SIMopt.Nshifts
+        # amplitude of illumination intensity above mean
+        SIMopt.ampInten = np.ones(SIMopt.Nangles) * SIMopt.ModFac
+        # mean illumination intensity
+        SIMopt.meanInten = 1 - SIMopt.ampInten
+    else:
+        SIMopt.Nframes = (SIMopt.Nspots // SIMopt.spotSize) ** 2
+        # amplitude of illumination intensity above mean
+        SIMopt.ampInten = SIMopt.ModFac
+        # mean illumination intensity
+        SIMopt.meanInten = 1 - SIMopt.ampInten
+        # resize amount of spots (to imitate effect of cropping from FOV on DMD/camera sensor)
+        SIMopt.spotResize = 0.7 + 0.6 * (np.random.rand() - 0.5)
+
+    SIMopt.imageSize = opt.imageSize
+
+    return SIMopt
+
+
 
 
 def GetParams_20230625(opt):  # uniform randomisation
@@ -134,7 +221,7 @@ def GetParams_20230410(opt):  # uniform randomisation
     SIMopt.func = (
         np.cos
         if np.random.rand() < 0.5
-        else SIMulator_functions.square_wave_one_third
+        else square_wave_one_third
     )
 
     return SIMopt
@@ -251,7 +338,7 @@ def processImage(file, opt, SIMopt_override=None):
 
         SIMopt.outputname = "%s/%s_%d.tif" % (opt.root, filename, n)
 
-        I = SIMulator_functions.Generate_SIM_Image(
+        I = Generate_SIM_Image(
             SIMopt, Io, opt.imageSize, gt_dim, func=SIMopt.func
         )
 
@@ -326,6 +413,9 @@ def processSeqImageFolder(filepath, opt):
             SIMopt, Io, opt.imageSize, gt_dim
         )
 
+
+
+
 class Paralleliser():
     def __init__(self, opt):
         self.opt = opt
@@ -343,8 +433,8 @@ class Paralleliser():
 
     def run(self, files):
         if self.opt.datagen_workers > 1:
-            pool = Pool(processes=self.opt.datagen_workers)
-            pool.map(self.process, files)
+            with ProcessPoolExecutor(max_workers=self.opt.datagen_workers) as executor:
+                executor.map(self.process, files)
         else:
             for file in files:
                 self.process(file)

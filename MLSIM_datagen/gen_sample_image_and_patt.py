@@ -8,7 +8,7 @@ import numpy as np
 from numpy import pi, cos, sin
 from numpy.fft import fft2, ifft2, fftshift, ifftshift
 
-from skimage import io, transform, data, img_as_ubyte, exposure
+from skimage import io, transform, data, img_as_ubyte, exposure, img_as_float
 from scipy.signal import convolve2d
 import scipy.special
 import argparse
@@ -18,6 +18,7 @@ from SIMulator_functions import (
     SIMimages_spots,
     PsfOtf,
     cos_wave,
+    cos_wave_envelope,
     square_wave_one_third,
     square_wave,
     square_wave_large_spacing
@@ -223,24 +224,22 @@ def gen_sample_pattern(opt):
     opt.SIMmodality = 'stripes'
     opt.Nshifts = 10
     opt.phaseError = 0 * (0.5 - np.random.rand(opt.Nangles, opt.Nshifts))
+    opt.patterns = 1
     pixelsize_ratio = 1
     # pixelsize_ratio = 1.6
     # pixelsize_ratio = 1.7
     # pixelsize_ratio = 1.8  # seemingly best value so far
     # func = cos_wave
     # func = square_wave
-    func = square_wave_large_spacing # seems best for DMD
-
-    img = data.astronaut().mean(axis=2)
+    func = cos_wave_envelope
 
     # regular stripes
     opt.noStripes = False
-    frames, auxil = SIMimages(opt, w, func=func, pixelsize_ratio=pixelsize_ratio)
+    frames = SIMimages(opt, w, func=func, pixelsize_ratio=pixelsize_ratio)
+    # fig, ax = plt.subplots(figsize=(10, 5))
+    # ax.plot(auxil[0])
 
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(auxil[0])
-
-    st.pyplot(fig)
+    # st.pyplot(fig)
 
     # speckles
     # opt.Nframes = 100
@@ -248,7 +247,42 @@ def gen_sample_pattern(opt):
     # opt.crop_factor = False
     # frames = SIMimages_speckle(opt, img, PSFo, OTFo)
 
-    # frames = SIMimages_spots(opt, img.shape[0])
+    # opt.Nspots = 80
+    # opt.spotSize = 10
+    # opt.Nframes = (opt.Nspots // opt.spotSize) ** 2
+    # frames = SIMimages_spots(opt, w)
+
+
+    # add frames
+
+    def aggregate_frames_stripes(imgstack, opt):
+        """
+        n: the nspots parameter, i.e. the number of spot locations in each grid, should be sqrt(nframes)
+
+        returns a new image stack with twice the density and nframes/4
+        """
+
+        Nangles = opt.Nangles
+        Nshifts = opt.Nshifts
+        new_images = []
+
+        imgstack = img_as_float(imgstack)
+
+        for i_a in range(0, Nangles):
+            for m in range(0, 2):
+                ind = [i for i in range(i_a*Nshifts + m, (i_a+1)*Nshifts, 2)]
+                new_image = np.max([imgstack[j] for j in ind], axis=0)
+                new_images.append(new_image)
+
+        return np.array(new_images)
+
+    frames = aggregate_frames_stripes(frames, opt)
+    # st.text(f"frames.shape: {frames.shape}, dtype: {frames.dtype}, min: {frames.min()}, max: {frames.max()}")
+
+    for idx, frame in enumerate(frames):
+
+        st.header(f"frame {idx}")
+        st.image(frame)
 
     # new_frames = []
     # for frame in frames:
@@ -257,14 +291,14 @@ def gen_sample_pattern(opt):
     #     new_frames.append(frame)
     # frames = np.array(new_frames)
 
-    frames = np.array(frames)
-    frames = exposure.rescale_intensity(frames, out_range="uint8")
+    # frames = np.array(frames)
+    # frames = exposure.rescale_intensity(frames, out_range="uint8")
 
-    io.imsave(
-        f"patterns.tif",
-        frames,
-    )
-    print("generated sample pattern patterns.tif")
+    # io.imsave(
+    #     f"patterns.tif",
+    #     frames,
+    # )
+    # print("generated sample pattern patterns.tif")
 
 
 def gen_sample_pattern_loop_stripes(opt):
@@ -415,6 +449,6 @@ if __name__ == "__main__":
     # opt.patterns = True
 
     gen_sample_pattern(opt)
-    read_sample_pattern(opt)
+    # read_sample_pattern(opt)
 
     # gen_sample_pattern_loop()

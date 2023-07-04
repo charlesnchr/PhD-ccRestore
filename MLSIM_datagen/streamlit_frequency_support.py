@@ -27,6 +27,7 @@ from SIMulator_functions import (
     SIMimages_spots,
     PsfOtf,
     cos_wave,
+    cos_wave_envelope,
     square_wave_one_third,
     square_wave,
     square_wave_large_spacing
@@ -128,11 +129,10 @@ def GetParams_frequency_support_investigation_20230621(opt):  # uniform randomis
         # normally Nframes is set like this
         # SIMopt.Nframes = (SIMopt.Nspots // SIMopt.spotSize) ** 2
 
-        # normally not set like this
+        # # normally not set like this
         # SIMopt.Nspots = int(np.ceil(np.sqrt(SIMopt.Nframes))) * SIMopt.spotSize
-        SIMopt.Nspots = 20
-        SIMopt.spotSize = 2
-        SIMopt.Nframes = (SIMopt.Nspots // SIMopt.spotSize) ** 2
+        SIMopt.Nspots = int(np.ceil(np.sqrt(SIMopt.Nframes))) * SIMopt.spotSize
+        st.text(f"spotSize: {SIMopt.spotSize}, Nspots: {SIMopt.Nspots}, Nframes: {SIMopt.Nframes}")
 
         # amplitude of illumination intensity above mean
         SIMopt.ampInten = SIMopt.ModFac
@@ -161,6 +161,68 @@ def calc_otf(img):
 
     return magnitude_spectrum
 
+def aggregate_frames_spots(imgstack, n):
+    """
+    This takes an image stack with a sparse layout of spots and combines appropriate frames to make them more dense.
+
+    n: the nspots parameter, i.e. the number of spot locations in each grid, should be sqrt(nframes)
+
+    returns a new image stack with twice the density and nframes/4
+    """
+    new_images = []
+
+    imgstack = img_as_float(imgstack)
+
+    for m in range(0, n//2):
+        image_indices = [i for i in range(m*n, m*n + n//2)]
+
+        new_image = None
+
+        for i in image_indices:
+
+            ind = []
+            ind.append(i)
+            ind.append(i + n//2)
+            ind.append(i + n**2//2)
+            ind.append(i + n**2//2 + n//2)
+
+            # sum images corresponding to ind
+            new_image = np.sum([imgstack[j] for j in ind], axis=0)
+
+            new_images.append(new_image)
+
+    return np.array(new_images)
+
+def aggregate_frames_stripes(imgstack, opt):
+    """
+    returns a new image stack with just two phase shifts frames (equivalent to Nshifts == 2)
+    """
+
+    Nangles = opt.Nangles
+    Nshifts = opt.Nshifts
+    st.text(f"Nangles: {Nangles}, Nshifts: {Nshifts}")
+    new_Nshifts = 2
+    new_images = []
+
+    imgstack = img_as_float(imgstack)
+
+    for i_a in range(0, Nangles):
+        for m in range(0, new_Nshifts):
+            ind = [i for i in range(i_a*Nshifts + m, (i_a+1)*Nshifts, 2)]
+            new_image = np.max([imgstack[j] for j in ind], axis=0)
+            new_images.append(new_image)
+
+    st.text(f"new_images.shape: {np.array(new_images).shape}")
+    return np.array(new_images)
+
+def aggregate_frames(imgstack, opt):
+
+    if opt.SIMmodality == "stripes":
+        return aggregate_frames_stripes(imgstack, opt)
+    elif opt.SIMmodality == "spots":
+        n = opt.Nspots
+        return aggregate_frames_spots(imgstack, n)
+
 
 def proj_otf(imgstack):
 
@@ -177,7 +239,7 @@ def proj_otf(imgstack):
 
     # max projection
     ffts = np.array(ffts)
-    ffts = np.max(ffts, axis=0)
+    ffts = np.max(np.abs(ffts), axis=0)
     proj_fft = np.abs(ffts)
     return proj_fft
 
@@ -203,7 +265,6 @@ def compute_cutoff_radius(radial_profile_1d):
 
 
 def compute(opt, images, queue=None, progress_bar=None):
-
     projs = []
     wf_spectra = []
 
@@ -212,6 +273,9 @@ def compute(opt, images, queue=None, progress_bar=None):
     for i in range(N):
         SIMopt = GetParams_frequency_support_investigation_20230621(opt)
         I = processImage(images[i], opt, SIMopt)
+
+        if opt.aggregate_frames:
+            I = aggregate_frames(I, SIMopt)
 
         wf = I.mean(axis=0)
         wf_spectrum = calc_otf(wf)
@@ -329,6 +393,7 @@ def measure_periods(signal):
 def get_wave_functions():
     return {
         "cos_wave": cos_wave,
+        "cos_wave_envelope": cos_wave_envelope,
         "square_wave_one_third": square_wave_one_third,
         "square_wave": square_wave,
         "square_wave_large_spacing": square_wave_large_spacing
@@ -371,6 +436,9 @@ def get_base_options():
     # max number is 50
     opt.nimages = st.sidebar.number_input('Number of images', value=1, format="%d", min_value=1, max_value=50)
     opt.plot_images = st.sidebar.checkbox('Plot images', value=False)
+
+    opt.aggregate_frames = st.sidebar.checkbox('Aggregate frames', value=False)
+
 
     return opt
 
@@ -532,10 +600,12 @@ def run_sweep(opt, sweep_type=1, param1=None, param1_values=None, param2=None, p
         # Display the heatmap
         if param2_values:  # 2D sweep
             fig = go.Figure(data=go.Heatmap(z=results_map,
-                                             x=list(param2_values),
-                                             y=list(param1_values),
-                                             colorbar=dict(title='Cutoff radius', titleside='right')))
-            fig.update_layout(title=f'Cutoff radius for different {param1} and {param2} values',
+                                 x=list(param2_values),
+                                 y=list(param1_values),
+                                 colorscale='viridis',
+                                 colorbar=dict(title='Cut-off radius', titleside='right')))
+
+            fig.update_layout(title=f'Cut-off radius for different {param1} and {param2} values',
                               xaxis_title=param2,
                               yaxis_title=param1,
                               )

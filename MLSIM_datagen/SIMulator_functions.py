@@ -10,28 +10,55 @@ import scipy.special
 from numba import jit
 
 import time
+import streamlit as st
 
 def cos_wave(x, opt):
-    return np.cos(x)
+    return np.clip(np.cos(x), 0, 1)
 
-# def square_wave(x, opt):
-#     return np.heaviside(np.cos(x), 0)
-#     # return np.where(np.cos(x) >= 0, 1, 0)
+def cos_wave_envelope(x, h, opt):
+    period_in_pixels = opt.w / (opt.k2)
+    p = period_in_pixels
+
+    f = 1 / p
+
+    # h = 2*pi*opt.k2*(h-0.5)+10
+    h = h*opt.w - opt.w/2 + 10
+
+    window = np.where(np.abs(x - h) <= period_in_pixels/4, 1, 0)
+    maxval = np.max(window * np.cos(2*pi*f*(x - h)))
+    return window * np.cos(2*pi*f*(x - h))
+
+# def cos_wave_envelope(x, h, opt):
+#     period_in_pixels = opt.w / (2*opt.k2)
+#     w = period_in_pixels
+
+#     # h = (2*h/2/pi) % opt.w
+#     h = (h*period_in_pixels / 2 / pi)
+
+
+#     window = np.where(np.abs(x - h) <= w/2, 1, 0)
+#     return window * (1 + np.cos(2 * np.pi * (x - h) / w))
+
+
 
 def square_wave(x, opt):
-    # Calculate the period and duty cycle
-    # period = 4*pi*opt.k2 / opt.w
+    return np.heaviside(np.cos(x), 0)
+    # return np.where(np.cos(x) >= 0, 1, 0)
 
-    # duty_cycle = 1 / (opt.Nshifts)
+# def square_wave(x, opt):
+#     # Calculate the period and duty cycle
+#     # period = 4*pi*opt.k2 / opt.w
 
-    peak_width = opt.peak_width
-    peak_spacing = opt.peak_spacing
+#     # duty_cycle = 1 / (opt.Nshifts)
 
-    # Convert these pixel values into fractions of the total width
-    duty_cycle = peak_width / peak_spacing
+#     peak_width = opt.peak_width
+#     peak_spacing = opt.peak_spacing
 
-    # Generate the square wave
-    return signal.square(x, duty_cycle)
+#     # Convert these pixel values into fractions of the total width
+#     duty_cycle = peak_width / peak_spacing
+
+#     # Generate the square wave
+#     return signal.square(x, duty_cycle)
 
 def square_wave_one_third(x, opt):
     # sums to 0
@@ -166,7 +193,7 @@ def PsfOtf(w, opt):
 def conv2(x, y, mode="same"):
     # Make it equivalent to Matlab's conv2 function
     # https://stackoverflow.com/questions/3731093/is-there-a-python-equivalent-of-matlabs-conv2-function
-    return np.rot90(convolve2d(np.rot90(x, 2), np.rot90(y, 2), mode=mode), 2)
+    return np.rot90(convolve2d(np.rot90(x, 2), np.rot90(y, 2), mode=mode), 2)/x.size/y.size
 
 
 def SIMimages(opt, DIo, func=cos_wave, pixelsize_ratio=1):
@@ -230,15 +257,15 @@ def SIMimages(opt, DIo, func=cos_wave, pixelsize_ratio=1):
         for i_s in range(opt.Nshifts):
             # illuminated signal
             if not opt.noStripes:
-                sig = opt.meanInten[i_a] + opt.ampInten[i_a] * func(
-                    2*pi * (k2mat[i_a, 0] * (X - wo) + k2mat[i_a, 1] * (Y - wo))
-                    + ps[i_a, i_s]
-                , opt)
-                # sig = opt.meanInten[i_a] + opt.ampInten[i_a] * func(
-                #     (k2mat[i_a, 0] * (X - wo) + k2mat[i_a, 1] * (Y - wo))
-                #     + ps[i_a, i_s]
-                # , opt)
-                # auxil.append(func(2*pi * (k2mat[i_a, 0] * (X[0,:] - wo) + k2mat[i_a, 1] * (Y[0,:] - wo)), opt))
+                if func == cos_wave_envelope:
+                    sig = opt.meanInten[i_a] + opt.ampInten[i_a] * cos_wave_envelope(
+                        (k2mat[i_a, 0]/opt.k2*opt.w * (X - opt.w/2) + k2mat[i_a, 1]/opt.k2*opt.w * (Y - opt.w/2)),
+                        i_s/opt.Nshifts, opt)
+                else:
+                    sig = opt.meanInten[i_a] + opt.ampInten[i_a] * func(
+                        2*pi * (k2mat[i_a, 0] * (X - wo) + k2mat[i_a, 1] * (Y - wo))
+                        + ps[i_a, i_s]
+                    , opt)
             else:
                 sig = 1  # simulating widefield
 
