@@ -1110,8 +1110,9 @@ class Fourier_SIM_dataset(Dataset):
             simimg = simimg.astype("float") / np.max(simimg)
         else:
             simimg = np.mean(inputimg, 0)  # same as widefield
-            simimg_uint8 = img_as_ubyte(simimg)
-            simimg = filters.unsharp_mask(simimg_uint8, radius=1.0, amount=1.0)
+            # to use deconv as comparison
+            # simimg_uint8 = img_as_ubyte(simimg)
+            # simimg = filters.unsharp_mask(simimg_uint8, radius=1.0, amount=1.0)
 
         if self.norm == "adapthist":
             for i in range(len(inputimg)):
