@@ -24,6 +24,12 @@ def square_wave_one_third(x):
     # sums to 0
     return 2 * (np.heaviside(np.cos(x) - np.cos(1 * np.pi / 3), 0) - 1 / 3)
 
+def square_wave_large_spacing(x):
+    # sums to 0
+    n = 10
+    d = 2 * np.pi / n
+    return np.heaviside(np.cos(x) - np.cos(d/2), 0)
+
 
 def discretized_sine(x):
     return np.where(
@@ -37,17 +43,17 @@ def symmetric_sawtooth_wave(x):
     return 4 * (0.5 - np.abs(((x / (2 * np.pi)) % 1) - 0.5)) - 1
 
 
-def plot_summed_wave(func=np.cos, plotting_displacement=0):
-    k2 = 50
+def plot_summed_wave(func=np.cos, plotting_displacement=0, n=6):
+    k2 = 40
     w = 512
     wo = w / 2
     theta = 0
     k2val = (k2 / w) * np.array([cos(theta), sin(theta)])
 
     # illumination phase shifts along directions with errors
-    ps = np.zeros((1, 3))
-    for i_s in range(3):
-        ps[0, i_s] = 2 * pi * i_s / 3
+    ps = np.zeros((1, n))
+    for i_s in range(n):
+        ps[0, i_s] = 2 * pi * i_s / n
 
     # x vec
     X = np.linspace(0, w / 10, w)
@@ -56,14 +62,14 @@ def plot_summed_wave(func=np.cos, plotting_displacement=0):
 
     # add three square waves
     sum_wave = np.zeros((1, w))
-    for i_s in range(3):
+    for i_s in range(n):
         wave = func(2 * pi * (k2val[0] * (X - wo)) + ps[0, i_s])
         sum_wave += wave
 
         # plot with transparency
         ax.plot(X, wave + plotting_displacement * i_s / 10, alpha=0.5)
 
-    st.title(f"{func.__name__}")
+    st.header(f"{func.__name__} — {n} phases")
 
     st.pyplot(fig)
     st.text(f"individual waves, {func.__name__}")
@@ -75,8 +81,9 @@ def plot_summed_wave(func=np.cos, plotting_displacement=0):
     st.text(f"summed wave, {func.__name__}")
 
 
-plot_summed_wave()
-plot_summed_wave(square_wave, plotting_displacement=1)
-plot_summed_wave(square_wave_one_third, plotting_displacement=1)
-plot_summed_wave(discretized_sine, plotting_displacement=1)
-plot_summed_wave(symmetric_sawtooth_wave, plotting_displacement=0)
+# plot_summed_wave()
+# plot_summed_wave(square_wave, plotting_displacement=1)
+# plot_summed_wave(square_wave_one_third, plotting_displacement=1, n=3)
+plot_summed_wave(square_wave_large_spacing, plotting_displacement=1, n=10)
+# plot_summed_wave(discretized_sine, plotting_displacement=1)
+# plot_summed_wave(symmetric_sawtooth_wave, plotting_displacement=0)

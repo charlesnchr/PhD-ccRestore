@@ -29,7 +29,7 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
 
     def SSIM_numpy(p0, p1):
         I0, I1 = np.array(p0) / 255.0, np.array(p1) / 255.0
-        return structural_similarity(I0, I1, multichannel=True)
+        return structural_similarity(I0, I1, multichannel=True, data_range=1.0)
         # return measure.compare_ssim(I0, I1, multichannel=True)
 
     def calcScores(img, hr=None, makeplotBool=False, plotidx=0, title=None):

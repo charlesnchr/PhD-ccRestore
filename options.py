@@ -155,3 +155,83 @@ parser.add_argument(
     "--plotinterval", type=int, default=1, help="number of epochs between plotting"
 )
 parser.add_argument("--nplot", type=int, default=4, help="number of plots in a test")
+
+
+
+# ----------- ML-SIM options
+parser.add_argument(
+    "--sourceimages_path",
+    type=str,
+    default="/local/scratch/cnc39/phd/datasets/DIV2K/DIV2K_train_HR",
+)
+parser.add_argument(
+    "--params",
+    type=str,
+    default="GetParams",
+)
+parser.add_argument(
+    "--nrep", type=int, default=1, help="instances of same source image"
+)
+parser.add_argument("--datagen_workers", type=int, default=8, help="")
+parser.add_argument("--ext", nargs="+", default=["png"])
+
+
+## SIM options to control from command line
+
+# stripes
+parser.add_argument("--Nshifts", type=int, default=3)
+parser.add_argument("--Nangles", type=int, default=3)
+parser.add_argument("--k2", type=float, default=130.0)
+parser.add_argument("--k2_err", type=float, default=15.0)
+
+# spots
+parser.add_argument("--Nspots", type=int, default=5)
+parser.add_argument("--spotSize", type=int, default=1)
+
+parser.add_argument("--PSFOTFscale", type=float, default=0.6)
+parser.add_argument("--ModFac", type=float, default=0.5)
+parser.add_argument("--usePSF", type=int, default=0)
+parser.add_argument("--NoiseLevel", type=float, default=8)
+parser.add_argument("--NoiseLevelRandFac", type=float, default=8)
+parser.add_argument(
+    "--phaseErrorFac", type=float, default=0.15
+)  # pi/3 quite large but still feasible
+parser.add_argument(
+    "--alphaErrorFac", type=float, default=0.15
+)  # pi/3 quite large but still feasible
+parser.add_argument(
+    "--angleError", type=float, default=5
+)  # pi/3 quite large but still feasible
+parser.add_argument("--usePoissonNoise", action="store_true")
+parser.add_argument("--dontShuffleOrientations", action="store_true")
+parser.add_argument("--dataonly", action="store_true")
+parser.add_argument("--applyOTFtoGT", action="store_true")
+parser.add_argument("--noStripes", action="store_true")
+parser.add_argument("--seqSIM", action="store_true")
+parser.add_argument("--skip_datagen", action="store_true")
+parser.add_argument(
+    "--SIMmodality",
+    type=str,
+    default="stripes",
+    help="SIM modality",
+    choices=["stripes", "spots", "speckle"],
+)
+parser.add_argument(
+    "--patterns", action="store_true", help="Only illumination patterns"
+)
+
+# DMD options
+parser.add_argument(
+    "--crop_factor", action="store_true", help="Crop factor for DMD coordinates"
+)
+parser.add_argument(
+    "--dmdMapping",
+    default=0,
+    type=int,
+    help="""whether to map image to DMD coordinates. 0:
+                    no mapping (tilted coordinate system if using oblique DMD), 1: DMD coordinate
+                    transformation for acquisition, 2: predicted physical appeareance on DMD for modelling""",
+    choices=[0, 1, 2],
+)
+
+# -------------
