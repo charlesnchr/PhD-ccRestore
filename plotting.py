@@ -78,11 +78,11 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
         sr_bat = sr_bat.cpu()
 
         for j in range(len(lr_bat)):  # loop over batch
-            makeplotBool = (
+            skipPyplot = (
                 idx < 5 or (idx + 1) % opt.plotinterval == 0 or idx == opt.nepoch - 1
             ) and count < opt.nplot
             if opt.logimage:
-                makeplotBool = False
+                skipPyplot = False
 
             lr, sr, hr = lr_bat.data[j], sr_bat.data[j], hr_bat.data[j]
 
@@ -93,16 +93,16 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                         toPIL(sr.float() / (opt.nch_out - 1)),
                         toPIL(hr.float()),
                     )
-                    if makeplotBool:
+                    if skipPyplot:
                         plt.figure(figsize=(10, 5))
-                    calcScores(lr, hr, makeplotBool, plotidx=1, title="ns")
+                    calcScores(lr, hr, skipPyplot, plotidx=1, title="ns")
                     bc_psnr, bc_ssim = calcScores(
-                        lr, hr, makeplotBool, plotidx=2, title="bc"
+                        lr, hr, skipPyplot, plotidx=2, title="bc"
                     )
                     sr_psnr, sr_ssim = calcScores(
-                        sr, hr, makeplotBool, plotidx=3, title="re"
+                        sr, hr, skipPyplot, plotidx=3, title="re"
                     )
-                    calcScores(hr, None, makeplotBool, plotidx=4)
+                    calcScores(hr, None, skipPyplot, plotidx=4)
                 elif opt.model == "wgan_binary":
                     m = nn.LogSoftmax(dim=0)
                     sr = m(sr)
@@ -116,16 +116,16 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                         toPIL(hr.float()),
                     )
 
-                    if makeplotBool:
+                    if skipPyplot:
                         plt.figure(figsize=(10, 5))
-                    calcScores(lr, hr, makeplotBool, plotidx=1, title="ns")
+                    calcScores(lr, hr, skipPyplot, plotidx=1, title="ns")
                     bc_psnr, bc_ssim = calcScores(
-                        lr, hr, makeplotBool, plotidx=2, title="bc"
+                        lr, hr, skipPyplot, plotidx=2, title="bc"
                     )
                     sr_psnr, sr_ssim = calcScores(
-                        sr, hr, makeplotBool, plotidx=3, title="re"
+                        sr, hr, skipPyplot, plotidx=3, title="re"
                     )
-                    calcScores(hr, None, makeplotBool, plotidx=4)
+                    calcScores(hr, None, skipPyplot, plotidx=4)
                 else:
                     if torch.max(hr.long()) == 0:
                         continue  # all black, ignore
@@ -145,16 +145,16 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                         toPIL(hr.float()),
                     )
 
-                    if makeplotBool:
+                    if skipPyplot:
                         plt.figure(figsize=(10, 5))
-                    calcScores(lr, hr, makeplotBool, plotidx=1, title="ns")
+                    calcScores(lr, hr, skipPyplot, plotidx=1, title="ns")
                     bc_psnr, bc_ssim = calcScores(
-                        lr, hr, makeplotBool, plotidx=2, title="bc"
+                        lr, hr, skipPyplot, plotidx=2, title="bc"
                     )
                     sr_psnr, sr_ssim = calcScores(
-                        sr, hr, makeplotBool, plotidx=3, title="re"
+                        sr, hr, skipPyplot, plotidx=3, title="re"
                     )
-                    calcScores(hr, None, makeplotBool, plotidx=4)
+                    calcScores(hr, None, skipPyplot, plotidx=4)
             elif opt.task == "classification":
                 predclass = sr.argmax(dim=0, keepdim=True)
                 if predclass.numpy() != hr.numpy():
@@ -187,29 +187,37 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
 
                     lr, bc, sr, hr = toPIL(lr), toPIL(bc), toPIL(sr), toPIL(hr)
 
-                    if makeplotBool:
+                    if skipPyplot:
                         plt.figure(figsize=(10, 5))
-                    calcScores(lr, hr, makeplotBool, plotidx=1, title="lr")
+                    calcScores(lr, hr, skipPyplot, plotidx=1, title="lr")
                     bc_psnr, bc_ssim = calcScores(
-                        bc, hr, makeplotBool, plotidx=2, title="bc"
+                        bc, hr, skipPyplot, plotidx=2, title="bc"
                     )
                     sr_psnr, sr_ssim = calcScores(
-                        sr, hr, makeplotBool, plotidx=3, title="sr"
+                        sr, hr, skipPyplot, plotidx=3, title="sr"
                     )
-                    calcScores(hr, None, makeplotBool, plotidx=4)
+                    calcScores(hr, None, skipPyplot, plotidx=4)
                 elif "sim" in opt.dataset:  # SIM dataset
                     if "simin_simout" in opt.task or "wfin_simout" in opt.task:
                         ## sim target
                         gt_bat = bat[2]
                         wf_bat = bat[3]
                         bc, hr, lr = hr_bat.data[j], gt_bat.data[j], wf_bat.data[j]
-                        sr = torch.clamp(sr, min=0, max=1)
+
+                        # clip
+                        # sr = torch.clamp(sr, min=0, max=1)
+                        # normalise
+                        sr = (sr - sr.min()) / (sr.max() - sr.min())
                     else:
                         ## gt target
                         sim_bat = bat[2]
                         wf_bat = bat[3]
                         bc, hr, lr = sim_bat.data[j], hr_bat.data[j], wf_bat.data[j]
-                        sr = torch.clamp(sr, min=0, max=1)
+
+                        # clip
+                        # sr = torch.clamp(sr, min=0, max=1)
+                        # normalise
+                        sr = (sr - sr.min()) / (sr.max() - sr.min())
 
                     # fix to deal with 3D deconvolution
                     if opt.nch_out > 1:
@@ -243,16 +251,16 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                     ### Common commands
                     lr, bc, sr, hr = toPIL(lr), toPIL(bc), toPIL(sr), toPIL(hr)
 
-                    if makeplotBool:
+                    if skipPyplot:
                         plt.figure(figsize=(10, 5))
-                    calcScores(lr, hr, makeplotBool, plotidx=1, title="WF")
+                    calcScores(lr, hr, skipPyplot, plotidx=1, title="WF")
                     bc_psnr, bc_ssim = calcScores(
-                        bc, hr, makeplotBool, plotidx=2, title="SIM"
+                        bc, hr, skipPyplot, plotidx=2, title="SIM"
                     )
                     sr_psnr, sr_ssim = calcScores(
-                        sr, hr, makeplotBool, plotidx=3, title="SR"
+                        sr, hr, skipPyplot, plotidx=3, title="SR"
                     )
-                    calcScores(hr, None, makeplotBool, plotidx=4)
+                    calcScores(hr, None, skipPyplot, plotidx=4)
                 else:  # denoising / restoration
                     sr = torch.clamp(sr, min=0, max=1)
 
@@ -276,16 +284,16 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                     # ---- Plotting -----
                     lr, bc, sr, hr = toPIL(lr), toPIL(bc), toPIL(sr), toPIL(hr)
 
-                    if makeplotBool:
+                    if skipPyplot:
                         plt.figure(figsize=(10, 5))
-                    calcScores(lr, hr, makeplotBool, plotidx=1, title="ns")
+                    calcScores(lr, hr, skipPyplot, plotidx=1, title="ns")
                     bc_psnr, bc_ssim = calcScores(
-                        bc, hr, makeplotBool, plotidx=2, title="sm"
+                        bc, hr, skipPyplot, plotidx=2, title="sm"
                     )
                     sr_psnr, sr_ssim = calcScores(
-                        sr, hr, makeplotBool, plotidx=3, title="re"
+                        sr, hr, skipPyplot, plotidx=3, title="re"
                     )
-                    calcScores(hr, None, makeplotBool, plotidx=4)
+                    calcScores(hr, None, skipPyplot, plotidx=4)
 
             mean_bc_psnr += bc_psnr
             mean_sr_psnr += sr_psnr
@@ -304,7 +312,7 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                 opt.writer.add_scalar("testimage_bc_psnr/%d" % count, bc_psnr, idx + 1)
                 opt.writer.add_scalar("testimage_bc_ssim/%d" % count, bc_ssim, idx + 1)
 
-            if makeplotBool and not opt.test:
+            if skipPyplot and not opt.test:
                 plt.tight_layout()
                 plt.subplots_adjust(wspace=0.01, hspace=0.01)
                 plt.savefig(
@@ -316,15 +324,17 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                 plt.close()
             elif opt.test:
                 orig_filename = f"{count}_{os.path.basename(bat[-1][0])}"
-                plt.tight_layout()
-                plt.subplots_adjust(wspace=0.01, hspace=0.01)
-                plt.savefig(
-                    "%s/%s_combined.png" % (opt.out, orig_filename),
-                    dpi=300,
-                    bbox_inches="tight",
-                    pad_inches=0,
-                )
-                plt.close()
+
+                if skipPyplot:
+                    plt.tight_layout()
+                    plt.subplots_adjust(wspace=0.01, hspace=0.01)
+                    plt.savefig(
+                        "%s/%s_combined.png" % (opt.out, orig_filename),
+                        dpi=300,
+                        bbox_inches="tight",
+                        pad_inches=0,
+                    )
+                    plt.close()
                 sr.save("%s/%s_sr.png" % (opt.out, orig_filename))
                 lr.save("%s/%s_lr.png" % (opt.out, orig_filename))
                 hr.save("%s/%s_hr.png" % (opt.out, orig_filename))
