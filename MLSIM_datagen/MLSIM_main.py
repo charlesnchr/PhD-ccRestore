@@ -1,13 +1,12 @@
-import sys
 import numpy as np
-from numpy import pi, cos, sin
+from numpy import pi, cos
 import math
 from skimage import io, transform
 import glob
 import os
 import argparse
-from multiprocessing import Pool
-from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import Pool, set_start_method
+
 from SIMulator_functions import (
     SIMimages,
     SIMimages_speckle,
@@ -21,7 +20,6 @@ from SIMulator_functions import (
     square_wave_large_spacing
 )
 import SeqSIMulator_functions
-
 
 np.random.seed(20221219)
 
@@ -413,9 +411,6 @@ def processSeqImageFolder(filepath, opt):
             SIMopt, Io, opt.imageSize, gt_dim
         )
 
-
-
-
 class Paralleliser():
     def __init__(self, opt):
         self.opt = opt
@@ -432,9 +427,10 @@ class Paralleliser():
 
 
     def run(self, files):
+        set_start_method('spawn')
         if self.opt.datagen_workers > 1:
-            with ProcessPoolExecutor(max_workers=self.opt.datagen_workers) as executor:
-                executor.map(self.process, files)
+            pool = Pool(processes=self.opt.datagen_workers)
+            pool.map(self.process, files)
         else:
             for file in files:
                 self.process(file)

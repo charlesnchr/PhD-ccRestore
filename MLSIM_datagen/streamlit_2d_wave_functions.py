@@ -81,9 +81,10 @@ def plot_summed_wave(func=np.cos, plotting_displacement=0, n=6):
     st.text(f"summed wave, {func.__name__}")
 
 
-# plot_summed_wave()
-# plot_summed_wave(square_wave, plotting_displacement=1)
-# plot_summed_wave(square_wave_one_third, plotting_displacement=1, n=3)
+plot_summed_wave(n=1)
+plot_summed_wave(cos_wave_envelope, n=1)
+plot_summed_wave(square_wave, plotting_displacement=1, n=1)
+plot_summed_wave(square_wave_one_third, plotting_displacement=1, n=3)
 plot_summed_wave(square_wave_large_spacing, plotting_displacement=1, n=10)
-# plot_summed_wave(discretized_sine, plotting_displacement=1)
-# plot_summed_wave(symmetric_sawtooth_wave, plotting_displacement=0)
+plot_summed_wave(discretized_sine, plotting_displacement=1)
+plot_summed_wave(symmetric_sawtooth_wave, plotting_displacement=0)
