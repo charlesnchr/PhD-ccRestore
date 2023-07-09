@@ -13,6 +13,7 @@ import scipy.ndimage as ndimage
 import torch.nn as nn
 import os
 import wandb
+import json
 
 plt.switch_backend("agg")
 
@@ -32,7 +33,17 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
         return structural_similarity(I0, I1, multichannel=True, data_range=1.0)
         # return measure.compare_ssim(I0, I1, multichannel=True)
 
-    def calcScores(img, hr=None, makeplotBool=False, plotidx=0, title=None):
+    def IoU(img, hr):
+        # Assumption: both input images are binary masks (0s and 1s)
+        # Compute Intersection over Union (IoU)
+        intersection = np.logical_and(img, hr)
+        union = np.logical_or(img, hr)
+        iou_score = np.sum(intersection) / np.sum(union)
+        return iou_score
+
+    def calcScores(
+        img, hr=None, makeplotBool=False, plotidx=0, title=None, use_iou=False
+    ):
         if makeplotBool:
             plt.subplot(1, 4, plotidx)
             plt.gca().axis("off")
@@ -40,10 +51,20 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
             plt.yticks([], [])
             plt.imshow(img, cmap="gray")
         if not hr == None:
-            psnr, ssim = PSNR_numpy(img, hr), SSIM_numpy(img, hr)
+            if use_iou:
+                iou = IoU(img, hr)
+                metric_value, metric_name = iou, "IoU"
+                final_title = "%s (%s: %0.2f)" % (title, metric_name, metric_value)
+                return_vals = metric_value, metric_value
+            else:
+                psnr, ssim = PSNR_numpy(img, hr), SSIM_numpy(img, hr)
+                metric_value, metric_name = psnr, "PSNR"
+                final_title = "%s (%0.2fdB/%0.3f)" % (title, psnr, ssim)
+                return_vals = psnr, ssim
+
             if makeplotBool:
-                plt.title("%s (%0.2fdB/%0.3f)" % (title, psnr, ssim))
-            return psnr, ssim
+                plt.title(final_title)
+            return return_vals
         if makeplotBool:
             plt.title(r"GT ($\infty$/1.000)")
 
@@ -72,7 +93,11 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                 sr_bat = torch.clamp(lr_bat.cuda() - noise_bat, 0, 1)
             else:
                 if not opt.cpu:
-                    sr_bat = net(lr_bat.cuda())
+                    if opt.mps:
+                        device = "mps"
+                    else:
+                        device = "cuda"
+                    sr_bat = net(lr_bat.to(device))
                 else:
                     sr_bat = net(lr_bat)
         sr_bat = sr_bat.cpu()
@@ -95,14 +120,14 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                     )
                     if skipPyplot:
                         plt.figure(figsize=(10, 5))
-                    calcScores(lr, hr, skipPyplot, plotidx=1, title="ns")
+                    calcScores(lr, hr, skipPyplot, plotidx=1, title="ns", use_iou=True)
                     bc_psnr, bc_ssim = calcScores(
-                        lr, hr, skipPyplot, plotidx=2, title="bc"
+                        lr, hr, skipPyplot, plotidx=2, title="bc", use_iou=True
                     )
                     sr_psnr, sr_ssim = calcScores(
-                        sr, hr, skipPyplot, plotidx=3, title="re"
+                        sr, hr, skipPyplot, plotidx=3, title="re", use_iou=True
                     )
-                    calcScores(hr, None, skipPyplot, plotidx=4)
+                    calcScores(hr, None, skipPyplot, plotidx=4, use_iou=True)
                 elif opt.model == "wgan_binary":
                     m = nn.LogSoftmax(dim=0)
                     sr = m(sr)
@@ -147,14 +172,14 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
 
                     if skipPyplot:
                         plt.figure(figsize=(10, 5))
-                    calcScores(lr, hr, skipPyplot, plotidx=1, title="ns")
+                    calcScores(lr, hr, skipPyplot, plotidx=1, title="ns", use_iou=True)
                     bc_psnr, bc_ssim = calcScores(
-                        lr, hr, skipPyplot, plotidx=2, title="bc"
+                        lr, hr, skipPyplot, plotidx=2, title="bc", use_iou=True
                     )
                     sr_psnr, sr_ssim = calcScores(
-                        sr, hr, skipPyplot, plotidx=3, title="re"
+                        sr, hr, skipPyplot, plotidx=3, title="re", use_iou=True
                     )
-                    calcScores(hr, None, skipPyplot, plotidx=4)
+                    calcScores(hr, None, skipPyplot, plotidx=4, use_iou=True)
             elif opt.task == "classification":
                 predclass = sr.argmax(dim=0, keepdim=True)
                 if predclass.numpy() != hr.numpy():
@@ -227,11 +252,10 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                         sr = sr[sr.shape[0] // 2]
                         hr = hr[hr.shape[0] // 2]
 
-
                     if opt.scale == 2:
                         if opt.patchSize is None:
                             # multiply by opt.scale (n.b. imageSize is low res size, but if patchsize is used, it's for
-                                                     # high res target)
+                            # high res target)
                             gt_dim = opt.imageSize
                             if type(gt_dim) is int:
                                 gt_dim = (gt_dim, gt_dim)
@@ -241,9 +265,15 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
                             if type(gt_dim) is int:
                                 gt_dim = (gt_dim, gt_dim)
 
-                        lr = transform.resize(lr.squeeze().numpy(), gt_dim, anti_aliasing=True, order=3)
-                        bc = transform.resize(bc.squeeze().numpy(), gt_dim, anti_aliasing=True, order=3)
-                        hr = transform.resize(hr.squeeze().numpy(), gt_dim, anti_aliasing=True, order=3)
+                        lr = transform.resize(
+                            lr.squeeze().numpy(), gt_dim, anti_aliasing=True, order=3
+                        )
+                        bc = transform.resize(
+                            bc.squeeze().numpy(), gt_dim, anti_aliasing=True, order=3
+                        )
+                        hr = transform.resize(
+                            hr.squeeze().numpy(), gt_dim, anti_aliasing=True, order=3
+                        )
                         lr = torch.from_numpy(lr)
                         bc = torch.from_numpy(bc)
                         hr = torch.from_numpy(hr)
@@ -377,7 +407,11 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
 
             count += 1
             if opt.test:
-                print("[%d/%d]" % (count, min(len(loader), opt.ntest)), end="\r")
+                print(
+                    "[%d/%d]"
+                    % (count, min(len(loader) * opt.batchSize_test, opt.ntest)),
+                    end="\r",
+                )
             if count == opt.ntest:
                 break
         if count == opt.ntest:
@@ -414,15 +448,14 @@ def testAndMakeCombinedPlots(net, loader, opt, idx=0):
     opt.fid.flush()
 
     if opt.test:
-        np.save(
-            "%s/test_scores.npy" % opt.out,
-            {
-                "bc_ssim_arr": bc_ssim_arr,
-                "sr_ssim_arr": sr_ssim_arr,
-                "bc_psnr_arr": bc_psnr_arr,
-                "sr_psnr_arr": sr_psnr_arr,
-            },
-        )
+        filename = "%s/test_scores.json" % opt.out
+        dict_to_save = {
+            "bc_ssim_arr": bc_ssim_arr,
+            "sr_ssim_arr": sr_ssim_arr,
+            "bc_psnr_arr": bc_psnr_arr,
+            "sr_psnr_arr": sr_psnr_arr,
+        }
+        json.dump(dict_to_save, open(filename, "w"))
 
     if opt.log and not opt.test:
         opt.writer.add_scalar("test/psnr", mean_sr_psnr / count, idx + 1)

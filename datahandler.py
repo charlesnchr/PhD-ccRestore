@@ -618,7 +618,6 @@ def load_Pickle_dataset(root, category, opt):
     return dataloader
 
 
-
 class GenericPickleDataset(Dataset):
     def __init__(
         self, root, category, opt
@@ -664,7 +663,7 @@ class GenericPickleDataset(Dataset):
             #     hr = torch.flip(hr, [1])
 
             lr = self.trans(hr)
-            return lr, hr
+            return lq, hq, self.images[index]
         elif self.nch == 1:
             # lq, hq = pickle.load(open(self.images[index], 'rb'))
             inputTuple = np.load(self.images[index], allow_pickle=True)
@@ -720,7 +719,7 @@ class GenericPickleDataset(Dataset):
                     lq = torch.flip(lq, [2])
                     hq = torch.flip(hq, [2])
 
-            return lq, hq  # hq, lq, lq
+            return lq, hq, self.images[index]  # hq, lq, lq
         elif self.nch == 3:
             img_in_pre, img_in, img_in_pos, img_gt = np.load(
                 self.images[index], allow_pickle=True
@@ -745,7 +744,7 @@ class GenericPickleDataset(Dataset):
                     lq = torch.flip(lq, [2])
                     hq = torch.flip(hq, [2])
 
-            return lq, hq
+            return lq, hq, self.images[index]
 
         else:
             print("datahandler error")
@@ -981,16 +980,15 @@ class Fourier_SIM_dataset(Dataset):
         self.norm = opt.norm
         self.out = opt.out
         self.imageSize = opt.imageSize
-        self.patchSize = opt.patchSize # different to image size as of May 2023
+        self.patchSize = opt.patchSize  # different to image size as of May 2023
 
     def get_patch(self, lr, hr, img1, img2, patch_size=96, scale=4):
-        iw, ih = lr.shape[2],lr.shape[1]
+        iw, ih = lr.shape[2], lr.shape[1]
         tp = patch_size
         ip = tp // scale
 
         ix = random.randrange(0, iw - ip + 1)
         iy = random.randrange(0, ih - ip + 1)
-
 
         tx, ty = scale * ix, scale * iy
 
@@ -1000,13 +998,11 @@ class Fourier_SIM_dataset(Dataset):
         # hr = hr.crop((tx,ty,tx+tp,ty+tp))
 
         return [
-            lr[:,iy:iy + ip, ix:ix + ip],
-            hr[:,ty:ty + tp, tx:tx + tp],
-            img1[:,iy:iy + ip, ix:ix + ip],
-            img2[:,iy:iy + ip, ix:ix + ip]
+            lr[:, iy : iy + ip, ix : ix + ip],
+            hr[:, ty : ty + tp, tx : tx + tp],
+            img1[:, iy : iy + ip, ix : ix + ip],
+            img2[:, iy : iy + ip, ix : ix + ip],
         ]
-
-
 
     def __getitem__(self, index):
         stack = io.imread(self.images[index])
@@ -1102,7 +1098,6 @@ class Fourier_SIM_dataset(Dataset):
         inputimg = inputimg.astype("float") / np.max(inputimg)  # used to be /255
         gt = gt.astype("float") / np.max(gt)  # used to be /255
 
-
         widefield = np.mean(inputimg, 0)
 
         if len(stack) > self.nch_in + 2 and self.scale == 1:
@@ -1161,10 +1156,15 @@ class Fourier_SIM_dataset(Dataset):
                 inputimg = exposure.rescale_intensity(inputimg, in_range=(p1, p2))
                 inputimg = torch.tensor(inputimg).float()
 
-
         if self.patchSize is not None:
-            inputimg, gt, simimg, widefield = self.get_patch(inputimg, gt, simimg, widefield, patch_size=self.patchSize, scale=self.scale)
-
+            inputimg, gt, simimg, widefield = self.get_patch(
+                inputimg,
+                gt,
+                simimg,
+                widefield,
+                patch_size=self.patchSize,
+                scale=self.scale,
+            )
 
         if "simin_simout" in self.task:
             return (
