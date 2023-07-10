@@ -7,3 +7,5 @@ runs-inference
 root
 .ipynb_checkpoints
 wandb
+.DS_Store
+/tags
