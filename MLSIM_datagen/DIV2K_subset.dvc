@@ -1,6 +1,6 @@
 outs:
-- md5: 0bc97fae9e60b4f6bde4318298a7987f.dir
-  size: 225627112
-  nfiles: 51
+- md5: 9f32346b01ee297cdbb9c60764d80b03.dir
+  size: 221457176
+  nfiles: 50
   hash: md5
   path: DIV2K_subset
