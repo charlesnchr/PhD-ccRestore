@@ -2,4 +2,4 @@
     remote = nfp
     autostage = true
 ['remote "nfp"']
-    url = ssh://nfp//volume1/homes/charles/dvc
+    url = ssh://nfp/homes/cc/dvc
