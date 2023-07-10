@@ -1,0 +1,5 @@
+[core]
+    remote = nfp
+    autostage = true
+['remote "nfp"']
+    url = ssh://nfp//volume1/homes/charles/dvc
