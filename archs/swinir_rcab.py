@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
 from itertools import repeat
 
-from self_attention_cv import AxialAttentionBlock
 
 from functools import reduce, lru_cache
 from operator import mul
@@ -1095,6 +1094,7 @@ class SwinIR_RCAB(nn.Module):
             # self.conv_combine = nn.Conv2d(num_in_ch, num_out_ch, 3, 1, 1)
 
             # ML-SIM v2,v3
+            # from self_attention_cv import AxialAttentionBlock
             # self.conv_last = nn.Conv2d(embed_dim, num_in_ch, 3, 1, 1)
             # self.conv_combine = nn.Conv2d(num_in_ch, num_out_ch, 3, 1, 1)
             # self.axial_att_block = AxialAttentionBlock(in_channels=9, dim=256, heads=8)
