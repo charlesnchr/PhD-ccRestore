@@ -1,0 +1,6 @@
+outs:
+- md5: 9f32346b01ee297cdbb9c60764d80b03.dir
+  size: 221457176
+  nfiles: 50
+  hash: md5
+  path: DIV2K_subset

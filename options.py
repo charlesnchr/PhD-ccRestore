@@ -48,7 +48,10 @@ parser.add_argument(
     "--imageSize", nargs="+", type=int, default=24, help="the low resolution image size"
 )
 parser.add_argument(
-    "--patchSize", type=int, default=None, help="patch size for of high res output (i.e. low res is patchSize/scale)"
+    "--patchSize",
+    type=int,
+    default=None,
+    help="patch size for of high res output (i.e. low res is patchSize/scale)",
 )
 parser.add_argument("--weights", type=str, default="", help="model to retrain from")
 parser.add_argument(
@@ -148,6 +151,7 @@ parser.add_argument(
 )
 parser.add_argument("--test", action="store_true")
 parser.add_argument("--cpu", action="store_true")  # not supported for training
+parser.add_argument("--mps", action="store_true")  # apple silicon
 parser.add_argument(
     "--batchSize_test", type=int, default=1, help="input batch size for test loader"
 )
@@ -155,7 +159,6 @@ parser.add_argument(
     "--plotinterval", type=int, default=1, help="number of epochs between plotting"
 )
 parser.add_argument("--nplot", type=int, default=4, help="number of plots in a test")
-
 
 
 # ----------- ML-SIM options

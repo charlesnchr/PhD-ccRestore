@@ -72,44 +72,10 @@ def options():
             opt.n_resblocks = getopt("opt.n_resblocks", int)
             opt.n_feats = getopt("opt.n_feats", int)
 
+    if len(opt.imageSize) == 1:
+        opt.imageSize = opt.imageSize[0]
+
     return opt
-
-
-# data utils
-def submitCmd():
-    import requests
-
-    machine = socket.gethostname()
-    newcmd = "python " + " ".join(sys.argv[:])
-    # print(newcmd)
-
-    requests.post(
-        "https://commandlog.imageheal.com/api/addNewEntryFromPython",
-        data={"machine": machine, "newcmd": newcmd},
-        auth=("cc", "k74mnptd"),
-    )
-
-
-def cloudpush(opt):
-    basename = os.path.basename(opt.out)
-    machine = socket.gethostname()
-    dt_string = datetime.now().strftime("%Y%m%d_%H%M")
-    outname = "gdrive:/%s/%s-%s-%s" % ("01runs", dt_string, machine, basename)
-    print("starting subprocess for sync")
-
-    if "cl.cam.ac.uk" in machine:
-        subprocess.check_output(
-            [
-                "rclone",
-                "--config",
-                "/local/scratch/cnc39/tmp/rclone.conf",
-                "move",
-                opt.out,
-                outname,
-            ]
-        )
-    else:
-        subprocess.check_output(["rclone", "move", opt.out, outname])
 
 
 def remove_dataparallel_wrapper(state_dict):
@@ -557,11 +523,6 @@ def train(opt, dataloader, validloader, net):
 
 
 def main(opt):
-    # try:
-    #     submitCmd()
-    # except:
-    #     print(traceback.format_exc())
-
     opt.device = torch.device(
         "cuda" if torch.cuda.is_available() and not opt.cpu else "cpu"
     )
@@ -640,13 +601,6 @@ def main(opt):
                 if samplecount == 10:
                     break
         shutil.rmtree(opt.root)
-
-    if opt.cloud:
-        print("uploading files")
-        if opt.log:
-            opt.train_stats.close()
-            opt.test_stats.close()
-        cloudpush(opt)
 
 
 if __name__ == "__main__":
