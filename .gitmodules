@@ -1,0 +1,3 @@
+[submodule "MLSIM_datagen/DMD-emulator"]
+	path = MLSIM_datagen/DMD-emulator
+	url = git@hf.co:spaces/charlesnchr/DMD-emulator
